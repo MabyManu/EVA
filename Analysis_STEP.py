@@ -82,7 +82,7 @@ for i_suj in range(NbSuj): # Loop on list of folders name
 		
 		
 		
-		## Analysis of the gaze data 
+		## Select of the gaze data 
 		raw_Gaze = raw.copy()
 		raw_Gaze.pick_channels(['Gaze_LEye_X','Gaze_LEye_Y','Gaze_REye_X','Gaze_REye_Y'])
 		

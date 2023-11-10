@@ -57,3 +57,28 @@ Plot EOG data for each condition
 
 
 SAVE all results and all figures in _results\STEP\* folder
+
+
+
+
+### Analysis_SmoothPursuit
+SMOOTH PURSUIT protocol
+Excentricity : +/- 17,5°
+Target velocity : 15°/sec
+18 cycles with a pause 
+
+Select one or more *_SmoothPursuit.raw.fif file(s)
+
+Analysis of the gaze data 
+Plot gaze data with the theorical trajectory
+
+Detection of blinks to remove the periods contening them
+Compute the mean velocity
+
+Analysis of the EOG data
+
+
+
+SAVE all results and all figures in _results\SmoothPursuit\* folder
+
+
