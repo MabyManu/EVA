@@ -1,0 +1,138 @@
+---
+title: "Analysis of ActPass paradigm session"
+format:
+  html:
+    code-fold: true
+    page-layout: full
+jupyter: python3
+---
+
+
+```{python}
+import os 
+import glob
+RootAnalysisFolder = os.path.split(os.path.split(os.getcwd())[0])[0]
+from termcolor import colored
+import mne
+import matplotlib.pyplot as plt
+plt.rcParams['figure.figsize']=(15,8)
+plt.rcParams["figure.dpi"] = 300.
+import sys
+sys.path.append(RootAnalysisFolder)
+from ActPass_fun import ActPass
+```
+
+
+*fif file name definition
+
+```{python}
+
+RootFolder =  os.path.split(RootAnalysisFolder)[0]
+
+RootDirectory_RAW = RootFolder + '/_data/FIF/'
+RootDirectory_Results = RootFolder + '/_results/'
+FifFileName = RootDirectory_RAW + "***SUJ***\***SUJ***_ActPass.raw.fif"
+
+SUBJECT_NAME = os.path.split(os.path.split(FifFileName)[0])[1]
+
+```
+
+
+Read Raw File
+
+```{python}
+
+# Read fif filename 
+raw_ActPass = ActPass(FifFileName)
+
+```
+
+
+## Plot the STD ERP in DIVerted Attention Condition and detect the significant components
+
+```{python}
+fig_StdDiv_EmergCompo = raw_ActPass.SignificativeComponante('STD/DIV',-0.2, 1.5, (-0.2,0),'g',0.75)
+```
+
+
+## Plot the STD ERP in FOCused Attention Condition and detect the significant components
+
+```{python}
+fig_StdFoc_EmergCompo = raw_ActPass.SignificativeComponante('STD/FOC',-0.2, 1.5, (-0.2,0),'r',0.75)
+```
+
+
+
+## Plot the DEV ERP in DIVerted Attention Condition and detect the significant components
+
+```{python}
+fig_DevDiv_EmergCompo = raw_ActPass.SignificativeComponante('DEV/DIV',-0.2, 1.5, (-0.2,0),'g',2)
+```
+
+
+## Plot the DEV ERP in FOCused Attention Condition and detect the significant components
+
+```{python}
+fig_DevFoc_EmergCompo = raw_ActPass.SignificativeComponante('DEV/FOC',-0.2, 1.5, (-0.2,0),'r',2)
+```
+
+
+## Compare STD ERPs in FOCused Attention and in DIVerted Attention Conditions
+```{python}
+fig_STD_FocVsDiv = raw_ActPass.StimComp2Cond(['STD/FOC','STD/DIV']   ,-0.2, 1.5, (-0.2,0),['r','g'],[0.75,0.75])
+```	
+
+## Compare DEV ERPs in FOCused Attention and in DIVerted Attention Conditions
+```{python}
+fig_DEV_FocVsDiv = raw_ActPass.StimComp2Cond(['DEV/FOC','DEV/DIV']   ,-0.2, 1.5, (-0.2,0),['r','g'],[2.0,2.0])
+```	
+		
+## Compare STD and DEV ERPs in DIVerted Attention Condition
+```{python}
+fig_StdDev_DIV = raw_ActPass.CompareSTD_DEV(['STD/DIV','DEV/DIV'],-0.2, 1.5, (-0.2,0),['g','g'],[0.75,2])
+```			
+		
+## Compare STD and DEV ERPs in FOCused Attention Condition
+```{python}
+fig_StdDev_FOC = raw_ActPass.CompareSTD_DEV(['STD/FOC','DEV/FOC'],-0.2, 1.5, (-0.2,0),['r','r'],[0.75,2])
+```				
+		
+
+## Compute MMN responses in FOCused Attention and in DIVerted Attention Conditions 
+```{python}
+fig_mmn = raw_ActPass.Analysis_MMN([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']],-0.2, 1.5, (-0.2,0),['r','g'],[3,3])
+```		
+
+## Compute the COUNT Effect : compare STD and DEV ERPs computed within the Region of Interest (ROI) consisting of Fz, Cz, and Pz electrodes under the FOCused Attention Condition
+```{python}
+fig_CountEffect,CountEffect_OK =  raw_ActPass.Compare_STDvsDEV_FocCondition(['STD/FOC','DEV/FOC'], -0.2, 1.5, (-0.2,0),['r','r'],[0.75,2],[0.25,0.8],['Fz','Cz','Pz'],0.05)
+if CountEffect_OK:
+	print(colored("COUNT EFFECT", 'green'))
+else:
+	print(colored("NO COUNT EFFECT", 'red'))
+```	
+
+
+## Compute the FOC vs DIV Effect : compare DEV ERPs computed within the Region of Interest (ROI) consisting of Fz, Cz, and Pz electrodes under the DIVerted Attention and the FOCused Attention Conditions
+```{python}
+fig_DEV_FocVsDiv,FocDivEffect_OK =  raw_ActPass.Compare_DEV_2Cond(['DEV/FOC','DEV/DIV'], -0.2, 1.5, (-0.2,0),['r','g'],[2.0,2.0],[0.25,0.8],['Fz','Cz','Pz'],0.05)
+if FocDivEffect_OK:
+	print(colored(" FOC vs DIV EFFECT ", 'green'))
+else:
+	print(colored("NO FOC vs DIV EFFECT ", 'red'))
+
+```	
+	
+	
+## Compare Heart Rate under the DIVerted Attention and the FOCused Attention Conditions
+```{python}
+fig_HR = raw_ActPass.HeartRate_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
+```
+
+
+## Compare Pupil Diameter under the DIVerted Attention and the FOCused Attention Conditions
+```{python}
+fig_Pupill = raw_ActPass.PupilDiam_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
+```
+
+

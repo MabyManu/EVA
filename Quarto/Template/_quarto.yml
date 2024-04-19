@@ -1,0 +1,32 @@
+project:
+  type: book
+
+book:
+  title: "Sujet ***SUJ***"
+  author: "Cophy"
+  date: today
+  
+  chapters:
+    - index.qmd
+    - STEP_***SUJ***.qmd
+    - SmoothPursuit_***SUJ***.qmd
+    - part : Covert Attention
+      chapters : 
+        - CovAtt_Horiz_***SUJ***.qmd
+        - CovAtt_Verti_***SUJ***.qmd
+        - CovAtt_Merge_***SUJ***.qmd
+       
+    - AuditoryBCI_***SUJ***.qmd        
+    - Claassen_***SUJ***.qmd
+    - ActPass_***SUJ***.qmd
+    - ClapBlink_***SUJ***.qmd
+    - Iannetti_***SUJ***.qmd
+
+
+format:
+  html:
+    theme: cosmo
+    grid: 
+      body-width: 1500px
+      sidebar-width: 200px
+      margin-width: 200px
