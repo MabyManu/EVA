@@ -1,0 +1,5 @@
+- part: "Analysis of Covert attention session "
+  chapters:
+   - CovAtt_Horiz_***SUJ***.qmd
+   - CovAtt_Verti_***SUJ***.qmd
+   - CovAtt_Merge_***SUJ***.qmd

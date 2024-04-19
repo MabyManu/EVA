@@ -1,0 +1,136 @@
+---
+title: "Analysis of Covert attention session - All Targets (Horizontally & vertically positioned)"
+format:
+  html:
+    code-fold: true
+    page-layout: full
+jupyter: python3
+---
+
+
+```{python}
+import os 
+import glob
+RootAnalysisFolder = os.path.split(os.path.split(os.getcwd())[0])[0]
+
+import mne
+from mne.io import concatenate_raws
+
+import numpy as np
+import matplotlib.pyplot as plt
+plt.rcParams['figure.figsize']=(15,8)
+plt.rcParams["figure.dpi"] = 300.
+import sys
+sys.path.append(RootAnalysisFolder)
+from CovertAttention_fun import CovertAttention
+```
+
+*fif file name definition
+
+```{python}
+
+RootFolder =  os.path.split(RootAnalysisFolder)[0]
+
+RootDirectory_RAW = RootFolder + '/_data/FIF/'
+RootDirectory_Results = RootFolder + '/_results/'
+
+FifFileName_Horiz = RootDirectory_RAW + "***SUJ***\***SUJ***_VisAtt_Horiz.raw.fif"
+FifFileName_Verti = RootDirectory_RAW + "***SUJ***\***SUJ***_VisAtt_Verti.raw.fif"
+
+SUBJECT_NAME = os.path.split(os.path.split(FifFileName_Horiz)[0])[1]
+FlagProcessAnalysis = os.path.isfile(FifFileName_Horiz)
+
+```
+
+
+Read Raw File
+
+```{python}
+
+# Read fif filename 
+if FlagProcessAnalysis :
+	CovertAtt_Merg = CovertAttention()
+
+
+	DictEvent = {'StdStim1/AttStim1' : 1 , 'DevStim1/AttStim1'  : 2 ,
+		         'StdStim2/AttStim1' : 3 , 'DevStim2/AttStim1' : 4 , 
+				 'StdStim1/AttStim2'  : 11, 'DevStim1/AttStim2'  : 12,
+				 'StdStim2/AttStim2' : 13, 'DevStim2/AttStim2' : 14,
+				 'Instruct/AttStim1' : 9 , 'Instruct/AttStim2' : 10 }
+	
+	
+	
+	mne_rawVertiCovAtt = CovertAtt_Merg.ReadFileandConvertEvent(FifFileName_Verti, DictEvent)
+	mne_rawHorizCovAtt = CovertAtt_Merg.ReadFileandConvertEvent(FifFileName_Horiz, DictEvent)
+	
+	Events_Verti, Events_dict_Verti = mne.events_from_annotations(mne_rawVertiCovAtt,verbose='ERROR')
+	Events_Horiz, Events_dict_Horiz = mne.events_from_annotations(mne_rawHorizCovAtt,verbose='ERROR')
+	
+	mne_rawMergeCovAtt = concatenate_raws([mne_rawHorizCovAtt,mne_rawVertiCovAtt])
+else:
+	print("  ****************         NO DATA          ****************")	
+```
+
+## Attentionnal components
+### Standards
+```{python}
+if FlagProcessAnalysis :
+	figStd,EpochStd = CovertAtt_Merg.CompareStimUnderCond(mne_rawMergeCovAtt,'Std',[1,1],'Standards')
+else:
+	print("  ****************         NO DATA          ****************")
+```
+### Deviants
+```{python}
+if FlagProcessAnalysis :
+	figDev,EpochDev = CovertAtt_Merg.CompareStimUnderCond(mne_rawMergeCovAtt,'Dev',[2.5,2.5],'Deviants')
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+## Behavior & Features
+```{python}
+
+if FlagProcessAnalysis :
+	Behav_Acc_Merge,TabNbStimPerBlock_Merge,figFeatures_Merge,Features_Merge,nb_spatial_filters,NbPtsEpoch= CovertAtt_Merg.ComputeFeatures(mne_rawMergeCovAtt)
+
+	print('Accuracy = ' +  f"{Behav_Acc_Merge*100:.2f}" + ' %')
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+## Decoding
+### Cross validation with one Xdawn Training
+```{python}
+
+if FlagProcessAnalysis :
+	accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Stim1,accuracy_Stim2 = CovertAtt_Merg.ClassicCrossValidation(Features_Merge,nb_spatial_filters,NbPtsEpoch)
+	print("   *********** Classic X-Validation ")
+	print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+	print("   ***********   ")
+	print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+	print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+	print("     Accuracy Stim Left Only   :  " ,  "{:.2f}".format(accuracy_Stim1))
+	print("     Accuracy Stim Right Only  :  " , "{:.2f}".format(accuracy_Stim2))	
+else:
+	print("  ****************         NO DATA          ****************")
+```
+### Cross validation with Xdawn retraining for each training dataset
+```{python}
+if FlagProcessAnalysis :
+	accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Stim1,accuracy_Stim2 = CovertAtt_Merg.ComputeAccuracy(mne_rawMergeCovAtt,TabNbStimPerBlock_Merge)
+	print("   *********** X-Validation with retrained Xdawn ")
+	print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+	print("   ***********   ")
+	print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+	print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+	print("     Accuracy Stim Left Only   :  " ,  "{:.2f}".format(accuracy_Stim1))
+	print("     Accuracy Stim RightOnly  :  " , "{:.2f}".format(accuracy_Stim2))
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+
+
+
+
+

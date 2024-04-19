@@ -1,0 +1,174 @@
+---
+title: "Analysis of STEP session"
+format:
+  html:
+    code-fold: true
+    page-layout: full
+jupyter: python3
+---
+
+
+
+```{python}
+import os 
+import glob
+RootAnalysisFolder = os.path.split(os.path.split(os.getcwd())[0])[0]
+
+import mne
+import matplotlib.pyplot as plt
+plt.rcParams['figure.figsize']=(15,8)
+plt.rcParams["figure.dpi"] = 300.
+import sys
+sys.path.append(RootAnalysisFolder)
+from STEP_fun import STEP
+```
+
+
+*fif file name definition
+
+```{python}
+
+RootFolder =  os.path.split(RootAnalysisFolder)[0]
+
+RootDirectory_RAW = RootFolder + '/_data/FIF/'
+RootDirectory_Results = RootFolder + '/_results/'
+FifFileName = RootDirectory_RAW + "***SUJ***\***SUJ***_STEP.raw.fif"
+
+SUBJECT_NAME = os.path.split(os.path.split(FifFileName)[0])[1]
+FlagProcessAnalysis = os.path.isfile(FifFileName)
+```
+
+
+Read File & set gaze Epoch
+
+```{python}
+if FlagProcessAnalysis :
+	raw_Step = STEP(FifFileName)
+	TimeWindow_Start = -1.0
+	TimeWindow_End = 3.0
+	Epoch_Left = raw_Step.SetEpoch_Gaze('Left',TimeWindow_Start,TimeWindow_End)
+	Epoch_Right = raw_Step.SetEpoch_Gaze('Right',TimeWindow_Start,TimeWindow_End)
+	Epoch_HalfLeft = raw_Step.SetEpoch_Gaze('HalfLeft',TimeWindow_Start,TimeWindow_End)
+	Epoch_HalfRight = raw_Step.SetEpoch_Gaze('HalfRight',TimeWindow_Start,TimeWindow_End)
+	Epoch_Top = raw_Step.SetEpoch_Gaze('Top',TimeWindow_Start,TimeWindow_End)
+	Epoch_Bottom = raw_Step.SetEpoch_Gaze('Bottom',TimeWindow_Start,TimeWindow_End)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+
+## Gaze position
+### Left Target
+
+```{python}
+if FlagProcessAnalysis :
+	Results_Left = raw_Step.Plot_STEP_gaze(Epoch_Left,'LEFT',[-raw_Step.Excentricity,0])
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+### Right Target
+
+```{python}
+if FlagProcessAnalysis :
+	Results_Right = raw_Step.Plot_STEP_gaze(Epoch_Right,'RIGHT',[raw_Step.Excentricity,0])
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+### Half Left Target
+
+```{python}
+if FlagProcessAnalysis :
+	Results_HalfLeft = raw_Step.Plot_STEP_gaze(Epoch_HalfLeft,'Half_LEFT',[-(raw_Step.Excentricity/2),0])
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+### Half Right Target
+
+```{python}
+if FlagProcessAnalysis :
+	Results_HalfRight = raw_Step.Plot_STEP_gaze(Epoch_HalfRight,'Half_RIGHT',[(raw_Step.Excentricity/2),0])
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+### Top Target
+
+```{python}
+if FlagProcessAnalysis :
+	Results_Top = raw_Step.Plot_STEP_gaze(Epoch_Top,'TOP',[0,-(raw_Step.Excentricity/2)])
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+
+### BottomTarget
+
+```{python}
+if FlagProcessAnalysis :
+	Results_Bottom = raw_Step.Plot_STEP_gaze(Epoch_Bottom,'BOTTOM',[0,(raw_Step.Excentricity/2)])
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+
+## Parameters values
+### Latency of Saccade Initiation
+
+```{python}
+if FlagProcessAnalysis :
+	Dict_Results={'Left':Results_Left,'Right':Results_Right,'HalfLeft':Results_HalfLeft,'HalfRight':Results_HalfRight,'Top':Results_Top,'Bottom':Results_Bottom}
+	ParamName = 'Latency_InitSacc'
+	fig_InitSacc = raw_Step.Plot_ResultStepParam(Dict_Results,ParamName)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+### Logarithm value of saccade gain
+
+```{python}
+if FlagProcessAnalysis :
+	ParamName = 'LogAmpGain'
+	fig_LogGainAmp = raw_Step.Plot_ResultStepParam(Dict_Results,ParamName)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+### Duration of the fixation gaze on the target
+
+```{python}
+if FlagProcessAnalysis :
+	ParamName = 'FixationDurationOnTarget'
+	fig_FixDurOnTarget = raw_Step.Plot_ResultStepParam(Dict_Results,ParamName)
+```
+
+```{python}
+## Save results computed from gaze data in a *json file
+if FlagProcessAnalysis :
+	TabParamName=['Latency_InitSacc','LogAmpGain','FixationDurationOnTarget']
+	SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_STEP.json"
+	raw_Step.SaveResults_Param(Dict_Results,TabParamName,SaveDataFilename)
+	SaveDataFilename = RootDirectory_Results + "STEP/" + SUBJECT_NAME + "_STEP.json"
+	raw_Step.SaveResults_Param(Dict_Results,TabParamName,SaveDataFilename)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+## EOG analysis
+```{python}
+if FlagProcessAnalysis :
+	# Process EOG data
+	TimeWindow_Start = -0.5
+	DictData_EOGHoriz = raw_Step.SetDataEOG(raw_Step.mne_raw,['EOGLef','EOGRig'],'Horiz',[1,-1],TimeWindow_Start,TimeWindow_End,raw_Step.event_id,raw_Step.events_from_annot,['Left','HalfLeft','Right','HalfRight'])
+	DictData_EOGVerti = raw_Step.SetDataEOG(raw_Step.mne_raw,['Fp1','Fp2'],'Verti',[1,1],TimeWindow_Start,TimeWindow_End,raw_Step.event_id,raw_Step.events_from_annot,['Top','Bottom'])
+	
+	# Plot EOG for each epoch
+	DictData_EOG = DictData_EOGHoriz
+	DictData_EOG.update(DictData_EOGVerti)
+	fig_EOG, DictStartSacc_Trials, DictStartSacc_Mean = raw_Step.Plot_EOG(DictData_EOG,raw_Step.Times,raw_Step.TargetFixationDuration)
+else:
+	print("  ****************         NO DATA          ****************")
+	
+```

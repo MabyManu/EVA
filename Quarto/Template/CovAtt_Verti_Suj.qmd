@@ -1,0 +1,174 @@
+---
+title: "Analysis of Covert attention session - Targets placed vertically"
+format:
+  html:
+    code-fold: true
+    page-layout: full
+jupyter: python3
+---
+
+
+```{python}
+import os 
+import glob
+RootAnalysisFolder = os.path.split(os.path.split(os.getcwd())[0])[0]
+
+import mne
+import numpy as np
+import matplotlib.pyplot as plt
+plt.rcParams['figure.figsize']=(15,8)
+plt.rcParams["figure.dpi"] = 300.
+import sys
+sys.path.append(RootAnalysisFolder)
+from CovertAttention_fun import CovertAttention
+```
+
+*fif file name definition
+
+```{python}
+
+RootFolder =  os.path.split(RootAnalysisFolder)[0]
+
+RootDirectory_RAW = RootFolder + '/_data/FIF/'
+RootDirectory_Results = RootFolder + '/_results/'
+FifFileName = RootDirectory_RAW + "***SUJ***\***SUJ***_VisAtt_Verti.raw.fif"
+
+SUBJECT_NAME = os.path.split(os.path.split(FifFileName)[0])[1]
+FlagProcessAnalysis = os.path.isfile(FifFileName)
+
+```
+
+
+Read Raw File
+
+```{python}
+
+# Read fif filename 
+if FlagProcessAnalysis :
+	CovertAtt_Verti = CovertAttention()
+	DictEvent_Verti = {   'StdUp/AttUp'   : 1 , 'DevUp/AttUp'   : 2 ,
+		                  'StdBottom/AttUp'  : 3 , 'DevBottom/AttUp'  : 4 , 
+		                  'StdUp/AttBottom'  : 11, 'DevUp/AttBottom'  : 12,
+		                  'StdBottom/AttBottom' : 13, 'DevBottom/AttBottom' : 14,
+		                  'Instruct/AttUp'  : 9 , 'Instruct/AttBottom' : 10 }
+		
+	mne_rawVertiCovAtt = CovertAtt_Verti.ReadFileandConvertEvent(FifFileName, DictEvent_Verti)
+	Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,AttSide = CovertAtt_Verti.SetGazeData(mne_rawVertiCovAtt)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+## Plot Gaze Position
+### Left Eye
+```{python}
+if FlagProcessAnalysis :
+	fig_Leye,Perct_FixCross_Leye = CovertAtt_Verti.PlotGazeFixation(Gaze_LEye_X,Gaze_LEye_Y,AttSide)
+	fig_Leye.suptitle('Vertical -  Left Eye Gaze Fixation')
+else:
+	print("  ****************         NO DATA          ****************")
+```
+### Right Eye
+```{python}
+if FlagProcessAnalysis :
+	
+	fig_Reye,Perct_FixCross_Reye = CovertAtt_Verti.PlotGazeFixation(Gaze_REye_X,Gaze_REye_Y,AttSide)
+	fig_Reye.suptitle('Vertical -  Right Eye Gaze Fixation')
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+## Cross fixation accuracy
+```{python}
+if FlagProcessAnalysis :
+	Mean_LE_XFix = np.nanmean(Perct_FixCross_Leye)
+	Mean_RE_XFix = np.nanmean(Perct_FixCross_Reye)
+	
+	Std_LE_XFix = np.nanstd(Perct_FixCross_Leye)
+	Std_RE_XFix = np.nanstd(Perct_FixCross_Reye)
+	
+	print("Left Eye = " + f"{Mean_LE_XFix:.2f}" + ' ' + u"\u00B1" + ' ' + f"{Std_LE_XFix:.2f}" + " %")
+	print("Right Eye = " + f"{Mean_RE_XFix:.2f}" + ' ' + u"\u00B1" + ' ' + f"{Std_RE_XFix:.2f}" + " %")
+else:
+	print("  ****************         NO DATA          ****************")
+```
+## Saccades
+### Plot and detect
+```{python}
+if FlagProcessAnalysis :
+	NbSaccades_LEye,NbSaccades_REye = CovertAtt_Verti.PlotSaccade(Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,mne_rawVertiCovAtt.info['sfreq'],AttSide,'Hori')
+else:
+	print("  ****************         NO DATA          ****************")
+```
+### Number of saccades
+```{python}
+if FlagProcessAnalysis :
+	Mean_LE_Sacc = np.nanmean(NbSaccades_LEye)
+	Mean_RE_Sacc = np.nanmean(NbSaccades_REye)
+	
+	Std_LE_Sacc = np.nanstd(NbSaccades_LEye)
+	Std_RE_Sacc = np.nanstd(NbSaccades_REye)
+	
+	print("Left Eye = " + f"{Mean_LE_Sacc:.2f}" + ' ' + u"\u00B1" + ' ' + f"{Std_LE_Sacc:.2f}" + " saccades")
+	print("Right Eye = " + f"{Mean_RE_Sacc:.2f}" + ' ' + u"\u00B1" + ' ' + f"{Std_RE_Sacc:.2f}" + " saccades")
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+## Attentionnal components
+### Standards
+```{python}
+if FlagProcessAnalysis :
+	figStd,EpochStd = CovertAtt_Verti.CompareStimUnderCond(mne_rawVertiCovAtt,'Std',[1,1],'Standards')
+else:
+	print("  ****************         NO DATA          ****************")
+```
+### Deviants
+
+```{python}
+if FlagProcessAnalysis :
+	figDev,EpochDev = CovertAtt_Verti.CompareStimUnderCond(mne_rawVertiCovAtt,'Dev',[2.5,2.5],'Deviants')
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+
+## Behavior & Features
+```{python}
+if FlagProcessAnalysis :
+	
+	Behav_Acc_Verti,TabNbStimPerBlock_Verti,figFeatures_Verti,Features_Verti,nb_spatial_filters,NbPtsEpoch= CovertAtt_Verti.ComputeFeatures(mne_rawVertiCovAtt)
+	
+	print('Behavior Accuracy = ' +  f"{Behav_Acc_Verti*100:.2f}" + ' %')
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+## Decoding
+### Cross validation with one Xdawn Training
+```{python}
+if FlagProcessAnalysis :	
+	accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Left,accuracy_Right = CovertAtt_Verti.ClassicCrossValidation(Features_Verti,nb_spatial_filters,NbPtsEpoch)
+	print("   *********** Classic X-Validation ")
+	print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+	print("   ***********   ")
+	print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+	print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+	print("     Accuracy Stim Left Only   :  " ,  "{:.2f}".format(accuracy_Left))
+	print("     Accuracy Stim Right Only  :  " , "{:.2f}".format(accuracy_Right))	
+else:
+	print("  ****************         NO DATA          ****************")
+```
+### Cross validation with Xdawn retraining for each training dataset
+```{python}
+if FlagProcessAnalysis :
+	accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Left,accuracy_Right = CovertAtt_Verti.ComputeAccuracy(mne_rawVertiCovAtt,TabNbStimPerBlock_Verti)
+	print("   *********** X-Validation with retrained Xdawn ")
+	print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+	print("   ***********   ")
+	print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+	print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+	print("     Accuracy Stim Left Only   :  " ,  "{:.2f}".format(accuracy_Left))
+	print("     Accuracy Stim RightOnly  :  " , "{:.2f}".format(accuracy_Right))
+else:
+	print("  ****************         NO DATA          ****************")
+```
