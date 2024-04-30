@@ -46,7 +46,9 @@ Read Raw File and compute Power spectrum for each blocks in 2 conditions : Move 
 raw_Claassen = Claassen(FifFileName)
 
 # Compute csd for each block 
-Epoch4SVM = raw_Claassen.SetEpoch_csd()
+rejection_rate = 0.1
+
+Epoch4SVM = raw_Claassen.SetEpoch_csd(rejection_rate=rejection_rate)
 
 # Compute power spectrum of each csd data
 PSD_epoch_data = raw_Claassen.Compute_psdEpoch(Epoch4SVM)	
@@ -75,7 +77,7 @@ print("p-value: ",AUC_data['p_value'])
 
 ## ERDS Analysis
 ```{python}
-fig_ERDS = raw_Claassen.ERDS_Analysis()
+fig_ERDS = raw_Claassen.ERDS_Analysis(rejection_rate=rejection_rate)
 ```
 
 ## Analysis of Heart Rate variation during the 'Move' and 'Rest' Conditions
