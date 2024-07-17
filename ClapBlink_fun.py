@@ -32,7 +32,7 @@ from mne.stats import permutation_cluster_test,f_threshold_mway_rm
 class ClapBlink:
 	def __init__(self,FifFileName):
 		self.mne_raw = mne.io.read_raw_fif(FifFileName,preload=True,verbose = 'ERROR')
-		fmin, fmax = 1.0, 10.0 # frequency cut-off, in Hz
+		fmin, fmax = 0.5, 10.0 # frequency cut-off, in Hz
 		self.mne_raw= self.mne_raw.filter(l_freq=fmin, h_freq= fmax,verbose='ERROR')
 		
 		
@@ -62,7 +62,7 @@ class ClapBlink:
 		self.mne_raw.crop(crop_start,crop_stop)
 		self.mne_raw.pick(['Fp1','Fp2'])
 		eog_event_id = 512
-		eog_events = mne.preprocessing.find_eog_events(self.mne_raw, ch_name=['Fp1','Fp2'], event_id=eog_event_id,h_freq=10,thresh=20e-6,verbose=True)
+		eog_events = mne.preprocessing.find_eog_events(self.mne_raw, ch_name=['Fp1','Fp2'], event_id=eog_event_id,h_freq=10,thresh=100e-6,verbose=True)
 		Data_EOG = (self.mne_raw._data[0,:]+self.mne_raw._data[1,:])/2
 		
 		
@@ -71,7 +71,9 @@ class ClapBlink:
 		Amplitude_Blink = []
 		Rank_Blink = []
 		
+		NbCol = int(np.ceil(np.sqrt(NbBlocs)))
 		
+		NbRow = int(np.ceil(NbBlocs/NbCol))
 		figEOG= plt.figure()
 		for i_fig in range(NbBlocs):
 			Time_plt = self.mne_raw.times[EvtClap_start[i_fig]-int(self.mne_raw.info['sfreq']):EvtClap_stop[i_fig]+int(self.mne_raw.info['sfreq'])]
@@ -79,7 +81,7 @@ class ClapBlink:
 			minplt = np.min(Data_plt)
 			maxplt = np.max(Data_plt)
 			
-			ax1 = plt.subplot(2, 2, i_fig+1)
+			ax1 = plt.subplot(NbCol, NbRow, i_fig+1)
 			ax1.plot(Time_plt,Data_plt*1e6)
 			i_rank = 0
 			for iclap in range(len(EvtClap)):

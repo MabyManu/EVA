@@ -102,7 +102,7 @@ if (len(filename[0])>0):
     JsonFileName = filename[0][0]
     
     print(JsonFileName)
-    with open(JsonFileName) as json_data:
+    with open(JsonFileName,errors="ignore") as json_data:
         print(type(json_data))
         data_dict = json.load(json_data)
         

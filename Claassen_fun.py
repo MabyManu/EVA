@@ -35,7 +35,7 @@ from sklearn.model_selection import cross_val_predict, cross_val_score, LeaveOne
 from tqdm import tqdm
 
 sys.path.append(PyABA_path)
-import py_tools
+import py_tools,mne_tools
 
 from matplotlib.colors import TwoSlopeNorm
 import numpy.matlib
@@ -53,12 +53,11 @@ class Claassen:
 		self.Trial_Duration = 12 #(s)
 		self.Segment_Duration = 2 # (s)		
 		self.fmin, self.fmax = 1.0, 30.0 # frequency cut-off, in Hz
-
 		
 		
 		
 		
-	def SetEpoch_csd(self):
+	def SetEpoch_csd(self,rejection_rate):
 		
 		# Bandpass filter between 1 and 30 Hz over continuous recordings
 		# By default, MNE uses a zero-phase FIR filter with a hamming window
@@ -143,7 +142,9 @@ class Claassen:
 		         baseline=None, # No baseline
 				 verbose="ERROR"
 		 )
-		
+		if (rejection_rate > 0.0):
+			ThresholdPeak2peak,_,_,ixEpochs2Remove,_ = mne_tools.RejectThresh(epochs,int(rejection_rate*100))
+			epochs.drop(ixEpochs2Remove,verbose=False)
 		return epochs
 	
 
@@ -203,45 +204,86 @@ class Claassen:
 		Epochs.metadata['y_pred'] = y_pred[:, 1]
 		data_to_proba = [block['y_pred'] for _,  block in Epochs.metadata.groupby('block')]
 		
+		
+		
+		
 		proba = np.mean(data_to_proba,
 		                 axis=0)
 		
 		
-		# plot the proba
-		
 		Nbsubplot = 4
-		Nbprobas =len(proba)
-		NbprobasPerplot = int(Nbprobas/Nbsubplot)
+		NbprobasTot = len(Epochs.drop_log)
+		NbprobasPerplot = int(NbprobasTot/Nbsubplot)
 		n_epo_segments = int(self.Trial_Duration/self.Segment_Duration)
 
-		fig_Proba = plt.figure()
-		Colors_plotproba = np.matlib.repmat([ ['red']*n_epo_segments,['black']*n_epo_segments],int(NbprobasPerplot/(n_epo_segments*2)),1)
 		
-		Colors_plotproba = []
-		for i in range(int(NbprobasPerplot/(n_epo_segments*2))):
-			Colors_plotproba = np.hstack((Colors_plotproba,['red']*n_epo_segments))
-			Colors_plotproba = np.hstack((Colors_plotproba,['black']*n_epo_segments))
-
+		fig_Proba = plt.figure()
+		Nbprobas =len(proba)
+		
+		i_subplot = 1
+		for i_probas in range(Nbprobas):
+			
+			if ((list(Epochs.metadata.index)[i_probas]>=(NbprobasPerplot*(i_subplot)))):
+				i_subplot = i_subplot + 1
+			ax = plt.subplot(Nbsubplot, 1, i_subplot)
+			if list(Epochs.metadata['move'])[i_probas]:
+				colorpoint = 'red'
+			else:
+				colorpoint = 'black'				
+			ax.scatter(list(Epochs.metadata.index)[i_probas],list(Epochs.metadata['y_pred'])[i_probas],s=20,c=colorpoint)
+			ax.set_ylim([0.0, 1.0])
+			
+			ax.set_ylabel('P ("keep moving ...")')
+			
 		for i_plot in range(Nbsubplot):
 			ax = plt.subplot(Nbsubplot, 1, i_plot + 1)
-			ax.scatter(np.arange(i_plot*NbprobasPerplot,(i_plot+1)*NbprobasPerplot),proba[i_plot*NbprobasPerplot:(i_plot+1)*NbprobasPerplot], s=20,
-			       c=Colors_plotproba)
-			ax.plot(np.arange(i_plot*NbprobasPerplot,(i_plot+1)*NbprobasPerplot),proba[i_plot*NbprobasPerplot:(i_plot+1)*NbprobasPerplot],'b',linewidth=0.5)
-			ax.set_ylim([0.0, 1.0])
-			plt.axhline(0.5, linestyle=':', color='m', label='Chance')
-			ax.set_ylabel('P ("keep moving ...")')
-			if i_plot==(Nbsubplot-1):
-				ax.set_xlabel('Time (segment number)')
-			
 			for x in np.arange(-0.5+(i_plot*NbprobasPerplot), ((i_plot+1)*NbprobasPerplot)-1, n_epo_segments*2):
 				plt.axvline(x, color='r', linewidth=2, linestyle=':',label="'keep moving...'" if x < NbprobasPerplot*(Nbsubplot-1) else None)
 				plt.axvline(x + n_epo_segments, color='k',linewidth=2, linestyle=':',label="'stop moving...'" if x < NbprobasPerplot*(Nbsubplot-1) else None)
 				ax.axvspan(x, x+n_epo_segments,facecolor="r",alpha=0.15)	
-				ax.axvspan(x+n_epo_segments, x+(2*n_epo_segments),facecolor="k",alpha=0.15)	
+				ax.axvspan(x+n_epo_segments, x+(2*n_epo_segments),facecolor="k",alpha=0.15)		
+			plt.axhline(0.5, linestyle=':', color='m', label='Chance')	
 		plt.legend(loc='lower right', framealpha=1.)
 		plt.suptitle( "  Average predicted probability of 'keep moving...'across the six blocks")
 		sns.despine()	
 		plt.show()
+		
+		
+# 		# plot the proba
+# 		
+# 		Nbsubplot = 4
+# 		Nbprobas =len(proba)
+# 		NbprobasPerplot = int(Nbprobas/Nbsubplot)
+# 		n_epo_segments = int(self.Trial_Duration/self.Segment_Duration)
+
+# 		fig_Proba = plt.figure()
+# 		Colors_plotproba = np.matlib.repmat([ ['red']*n_epo_segments,['black']*n_epo_segments],int(NbprobasPerplot/(n_epo_segments*2)),1)
+# 		
+# 		Colors_plotproba = []
+# 		for i in range(int(NbprobasPerplot/(n_epo_segments*2))):
+# 			Colors_plotproba = np.hstack((Colors_plotproba,['red']*n_epo_segments))
+# 			Colors_plotproba = np.hstack((Colors_plotproba,['black']*n_epo_segments))
+
+# 		for i_plot in range(Nbsubplot):
+# 			ax = plt.subplot(Nbsubplot, 1, i_plot + 1)
+# 			ax.scatter(np.arange(i_plot*NbprobasPerplot,(i_plot+1)*NbprobasPerplot),proba[i_plot*NbprobasPerplot:(i_plot+1)*NbprobasPerplot], s=20,
+# 			       c=Colors_plotproba)
+# 			ax.plot(np.arange(i_plot*NbprobasPerplot,(i_plot+1)*NbprobasPerplot),proba[i_plot*NbprobasPerplot:(i_plot+1)*NbprobasPerplot],'b',linewidth=0.5)
+# 			ax.set_ylim([0.0, 1.0])
+# 			plt.axhline(0.5, linestyle=':', color='m', label='Chance')
+# 			ax.set_ylabel('P ("keep moving ...")')
+# 			if i_plot==(Nbsubplot-1):
+# 				ax.set_xlabel('Time (segment number)')
+# 			
+# 			for x in np.arange(-0.5+(i_plot*NbprobasPerplot), ((i_plot+1)*NbprobasPerplot)-1, n_epo_segments*2):
+# 				plt.axvline(x, color='r', linewidth=2, linestyle=':',label="'keep moving...'" if x < NbprobasPerplot*(Nbsubplot-1) else None)
+# 				plt.axvline(x + n_epo_segments, color='k',linewidth=2, linestyle=':',label="'stop moving...'" if x < NbprobasPerplot*(Nbsubplot-1) else None)
+# 				ax.axvspan(x, x+n_epo_segments,facecolor="r",alpha=0.15)	
+# 				ax.axvspan(x+n_epo_segments, x+(2*n_epo_segments),facecolor="k",alpha=0.15)	
+# 		plt.legend(loc='lower right', framealpha=1.)
+# 		plt.suptitle( "  Average predicted probability of 'keep moving...'across the six blocks")
+# 		sns.despine()	
+# 		plt.show()
 		
 		return fig_Proba
 		
@@ -290,7 +332,7 @@ class Claassen:
 		        groups=epochs.metadata['trial'], # use for cv
 		)
 		
-		mean_score = scores.mean(0)
+		mean_score = np.nanmean(scores)
 		print('Mean scores across split: AUC=%.3f' % mean_score)
 		
 		
@@ -316,7 +358,7 @@ class Claassen:
 		    )
 		    
 		    # Store results
-		    permutation_scores.append(permutation_score.mean(0))
+		    permutation_scores.append(np.nanmean(permutation_score))
 		
 		
 		# The p-value is computed from the number of permutations which
@@ -325,11 +367,13 @@ class Claassen:
 		#
 		# (Ojala M GG. Journal of Machine Learning Research. 2010).
 		    
-		n_higher = sum([s >= scores.mean(0) for s in permutation_scores])
+		n_higher = sum([s >= np.nanmean(scores) for s in permutation_scores])
+		
+		
 		pvalue = (n_higher + 1.) / (n_permutations + 1.)
 		
-		print("Empirical AUC = %.2f +/-%.2f" % (scores.mean(0), scores.std(0)))
-		print("Shuffle AUC = %.2f" % np.mean(permutation_scores, 0))
+		print("Empirical AUC = %.2f +/-%.2f" % (np.nanmean(scores), np.nanstd(scores)))
+		print("Shuffle AUC = %.2f" % np.nanmean(permutation_scores, 0))
 		print("p-value = %.4f" % pvalue)
 		
 		# plot permutation and empirical distributions
@@ -338,7 +382,7 @@ class Claassen:
 		
 		sns.kdeplot(permutation_scores, label='permutation scores')
 		sns.kdeplot(scores)
-		plt.title(" Empirical AUC = %.2f +/-%.2f" % (scores.mean(0), scores.std(0)) + "   Shuffle AUC = %.2f" % np.mean(permutation_scores, 0) + "   p-value = %.4f" % pvalue)
+		plt.title(" Empirical AUC = %.2f +/-%.2f" % (np.nanmean(scores),  np.nanstd(scores)) + "   Shuffle AUC = %.2f" % np.nanmean(permutation_scores, 0) + "   p-value = %.4f" % pvalue)
 		
 		plt.axvline(.5, linestyle='--', label='theoretical chance')
 		plt.axvline(scores.mean(), color='orange', label='mean score')
@@ -360,7 +404,7 @@ class Claassen:
 	
 	
 	
-	def ERDS_Analysis(self):	
+	def ERDS_Analysis(self,rejection_rate):	
 		raw_erds = self.mne_raw.copy()
 		montage = mne.channels.make_standard_montage('standard_1005')
 		raw_erds = raw_erds.set_montage(montage,verbose = 'ERROR')
@@ -390,6 +434,10 @@ class Claassen:
 		
 		epochs = mne.Epochs(raw_erds, events_from_annot, event_ids, tmin - 0.5, tmax + 0.5,
 		                    picks=self.Channels_Of_Interest, baseline=None, preload=True,verbose = 'ERROR')
+		
+		if (rejection_rate > 0.0):
+			ThresholdPeak2peak,_,_,ixEpochs2Remove,_ = mne_tools.RejectThresh(epochs,int(rejection_rate*100))
+			epochs.drop(ixEpochs2Remove,verbose=False)
 		
 		
 		# Here we set suitable values for computing ERDS maps.
@@ -700,13 +748,14 @@ if __name__ == "__main__":
 		if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
 			os.mkdir(RootDirectory_Results + SUBJECT_NAME)
 		
+		rejection_rate = 0.1
 		# Read fif filname and convert in raw object
 		raw_Claassen = Claassen(FifFileName)
-		Epoch4SVM = raw_Claassen.SetEpoch_csd()
-		PSD_epoch_data = raw_Claassen.Compute_psdEpoch(Epoch4SVM)		
-		fig_Predict = raw_Claassen.ComputePlot_LOOCV(Epoch4SVM,PSD_epoch_data)		
-		fig_AUC, AUC_data = raw_Claassen.Compute_AUC(Epoch4SVM,PSD_epoch_data)
-		
-		fig_ERDS = raw_Claassen.ERDS_Analysis()
-		figHR_Mvt = raw_Claassen.HeartRate_analysis()
-		figPupil = raw_Claassen.PupilDiam_analysis()
+# 		Epoch4SVM = raw_Claassen.SetEpoch_csd(rejection_rate=rejection_rate)
+# 		PSD_epoch_data = raw_Claassen.Compute_psdEpoch(Epoch4SVM)		
+# 		fig_Predict = raw_Claassen.ComputePlot_LOOCV(Epoch4SVM,PSD_epoch_data)		
+# 		fig_AUC, AUC_data = raw_Claassen.Compute_AUC(Epoch4SVM,PSD_epoch_data)
+# # 		
+# 		fig_ERDS = raw_Claassen.ERDS_Analysis(rejection_rate=rejection_rate)
+# 		figHR_Mvt = raw_Claassen.HeartRate_analysis()
+# 		figPupil = raw_Claassen.PupilDiam_analysis()

@@ -115,11 +115,11 @@ else:
 	print("  ****************         NO DATA          ****************")
 ```
 
-## Attentionnal components
+## Attentional components
 ### Standards
 ```{python}
 if FlagProcessAnalysis :
-	figStd,EpochStd = CovertAtt_Horiz.CompareStimUnderCond(mne_rawHorizCovAtt,'Std',[1,1],'Standards')
+	figStd,EpochStd = CovertAtt_Horiz.CompareStimUnderCond(mne_rawHorizCovAtt,'Std',[1,1],'Standards',None)
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -127,7 +127,7 @@ else:
 ### Deviants
 ```{python}
 if FlagProcessAnalysis :
-	figDev,EpochDev = CovertAtt_Horiz.CompareStimUnderCond(mne_rawHorizCovAtt,'Dev',[2.5,2.5],'Deviants')
+	figDev,EpochDev = CovertAtt_Horiz.CompareStimUnderCond(mne_rawHorizCovAtt,'Dev',[2.5,2.5],'Deviants',None)
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -173,3 +173,139 @@ if FlagProcessAnalysis :
 else:
 	print("  ****************         NO DATA          ****************")
 ```
+
+
+
+
+
+
+
+## Independant Components fitted in Attended condition
+### Standards
+```{python}
+if FlagProcessAnalysis :
+	Events_Horiz, _ = mne.events_from_annotations(mne_rawHorizCovAtt,verbose='ERROR')
+	fig_CompareCond_IC_Std_Horiz = CovertAtt_Horiz.CompareCondFromIcaCompo(mne_rawHorizCovAtt,Events_Horiz,['eeg'],-0.1,1.0,0.15,'Std',[1,1],'Standards',2000,0.15,None)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+### Deviants
+```{python}
+if FlagProcessAnalysis :
+	Events_Horiz, _ = mne.events_from_annotations(mne_rawHorizCovAtt,verbose='ERROR')
+	fig_CompareCond_IC_Dev_Horiz = CovertAtt_Horiz.CompareCondFromIcaCompo(mne_rawHorizCovAtt,Events_Horiz,['eeg'],-0.1,1.0,0.15,'Dev',[2.5,2.5],'Deviants',2000,0.15,None)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+
+
+
+
+## Horizontal EOG Attended vs Ignored
+### Standards
+```{python}
+if FlagProcessAnalysis :
+	CovertAtt_Horiz.plotEOGCompareAttIgn(mne_rawHorizCovAtt,['EOGLef','EOGRig'],'Horiz',-0.1,0.6,'Std',0.05,None)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+### Deviants
+```{python}
+if FlagProcessAnalysis :
+	CovertAtt_Horiz.plotEOGCompareAttIgn(mne_rawHorizCovAtt,['EOGLef','EOGRig'],'Horiz',-0.1,0.6,'Dev',0.05,None)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+
+## Vertical EOG (Fp1 & Fp2)  Attended vs Ignored
+### Standards
+```{python}
+if FlagProcessAnalysis :
+	CovertAtt_Horiz.plotEOGCompareAttIgn (mne_rawHorizCovAtt,['Fp1','Fp2'],'Verti',-0.1,0.6,'Std',0.05,None)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+### Deviants
+```{python}
+if FlagProcessAnalysis :
+	CovertAtt_Horiz.plotEOGCompareAttIgn (mne_rawHorizCovAtt,['Fp1','Fp2'],'Verti',-0.1,0.6,'Dev',0.05,None)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+
+
+## Gaze position Attended vs Ignored
+### Left Eye
+#### Standards
+```{python}
+if FlagProcessAnalysis :
+	CovertAtt_Horiz.plotGazeCompareAttIgn (mne_rawHorizCovAtt,['Gaze_LEye_X','Gaze_LEye_Y'],-0.1,0.6,'Std',0.05,None)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+#### Deviants
+```{python}
+if FlagProcessAnalysis :
+	CovertAtt_Horiz.plotGazeCompareAttIgn(mne_rawHorizCovAtt,['Gaze_LEye_X','Gaze_LEye_Y'],-0.1,0.6,'Dev',0.05,None)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+
+### Right Eye
+#### Standards
+```{python}
+if FlagProcessAnalysis :
+	CovertAtt_Horiz.plotGazeCompareAttIgn(mne_rawHorizCovAtt,['Gaze_REye_X','Gaze_REye_Y'],-0.1,0.6,'Std',0.05,None)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+#### Deviants
+```{python}
+if FlagProcessAnalysis :
+	CovertAtt_Horiz.plotGazeCompareAttIgn(mne_rawHorizCovAtt,['Gaze_REye_X','Gaze_REye_Y'],-0.1,0.6,'Dev',0.05,None)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+
+
+## Spectral analysis of gaze position for each trial
+```{python}
+if FlagProcessAnalysis :
+	CovertAtt_Horiz.GazeSpectralAnalysis(mne_rawHorizCovAtt,['Gaze_LEye_X','Gaze_LEye_Y','Gaze_REye_X','Gaze_REye_Y'],0.25,15,0.1)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+
+
+
+
+
+## Pupil diameter in Attended condition, Deviants vs Standards
+```{python}
+if FlagProcessAnalysis :
+	CovertAtt_Horiz.plotDiamPupillCompareStdDevAtt(mne_rawHorizCovAtt,['PupDi_LEye','PupDi_REye'],-0.1,0.6,0.05,None)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+
+
+
+
+
+
+
+
+
+
