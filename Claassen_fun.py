@@ -751,11 +751,11 @@ if __name__ == "__main__":
 		rejection_rate = 0.1
 		# Read fif filname and convert in raw object
 		raw_Claassen = Claassen(FifFileName)
-		Epoch4SVM = raw_Claassen.SetEpoch_csd(rejection_rate=rejection_rate)
-		PSD_epoch_data = raw_Claassen.Compute_psdEpoch(Epoch4SVM)		
-		fig_Predict = raw_Claassen.ComputePlot_LOOCV(Epoch4SVM,PSD_epoch_data)		
-		fig_AUC, AUC_data = raw_Claassen.Compute_AUC(Epoch4SVM,PSD_epoch_data)
-# 		
-		fig_ERDS = raw_Claassen.ERDS_Analysis(rejection_rate=rejection_rate)
-		figHR_Mvt = raw_Claassen.HeartRate_analysis()
-		figPupil = raw_Claassen.PupilDiam_analysis()
+# 		Epoch4SVM = raw_Claassen.SetEpoch_csd(rejection_rate=rejection_rate)
+# 		PSD_epoch_data = raw_Claassen.Compute_psdEpoch(Epoch4SVM)		
+# 		fig_Predict = raw_Claassen.ComputePlot_LOOCV(Epoch4SVM,PSD_epoch_data)		
+# 		fig_AUC, AUC_data = raw_Claassen.Compute_AUC(Epoch4SVM,PSD_epoch_data)
+# # 		
+# 		fig_ERDS = raw_Claassen.ERDS_Analysis(rejection_rate=rejection_rate)
+# 		figHR_Mvt = raw_Claassen.HeartRate_analysis()
+# 		figPupil = raw_Claassen.PupilDiam_analysis()

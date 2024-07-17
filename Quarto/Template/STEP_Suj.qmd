@@ -21,6 +21,11 @@ plt.rcParams["figure.dpi"] = 300.
 import sys
 sys.path.append(RootAnalysisFolder)
 from STEP_fun import STEP
+
+from AddPyABA_Path import PyABA_path
+sys.path.append(PyABA_path)
+import gaze_tools,py_tools
+
 ```
 
 
@@ -113,6 +118,15 @@ else:
 	print("  ****************         NO DATA          ****************")
 ```
 
+## Mean of Gaze Position
+```{python}
+if FlagProcessAnalysis :
+	List_Epoch=[Epoch_Left,Epoch_Right,Epoch_HalfLeft,Epoch_HalfRight,Epoch_Top,Epoch_Bottom]
+	List_Target_PixPosition = [[-raw_Step.Excentricity,0],[raw_Step.Excentricity,0],[-(raw_Step.Excentricity/2),0],[(raw_Step.Excentricity/2),0],[0,-(raw_Step.Excentricity/2)],[0,(raw_Step.Excentricity/2)]]
+	Results_MeanGaze = gaze_tools.Plot_MeanGaze_STEP(List_Epoch, List_Target_PixPosition,raw_Step.TargetFixationDuration,[raw_Step.Cross_X,raw_Step.Cross_Y],raw_Step.Pix2DegCoeff,raw_Step.SaccadeAmp_Min_Deg)
+else:
+	print("  ****************         NO DATA          ****************")
+```
 
 ## Parameters values
 ### Latency of Saccade Initiation
@@ -144,14 +158,125 @@ if FlagProcessAnalysis :
 	fig_FixDurOnTarget = raw_Step.Plot_ResultStepParam(Dict_Results,ParamName)
 ```
 
+
+
+### Variability of the fixation gaze on the target (in °)
+
+```{python}
+if FlagProcessAnalysis :
+	ParamName = 'VariabilityOfFixation'
+	fig_VarOfFixOnTarget = raw_Step.Plot_ResultStepParam(Dict_Results,ParamName)
+```
+
 ```{python}
 ## Save results computed from gaze data in a *json file
 if FlagProcessAnalysis :
 	TabParamName=['Latency_InitSacc','LogAmpGain','FixationDurationOnTarget']
+	if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
+		os.mkdir(RootDirectory_Results + SUBJECT_NAME)	
 	SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_STEP.json"
 	raw_Step.SaveResults_Param(Dict_Results,TabParamName,SaveDataFilename)
 	SaveDataFilename = RootDirectory_Results + "STEP/" + SUBJECT_NAME + "_STEP.json"
 	raw_Step.SaveResults_Param(Dict_Results,TabParamName,SaveDataFilename)
+	
+	
+	Dict_Latency_InitSacc_LeftEye = { 	'Left'     : Results_MeanGaze['Latency_InitSacc_LeftEye'][0],
+										'Right'    : Results_MeanGaze['Latency_InitSacc_LeftEye'][1],
+										'HalfLeft' : Results_MeanGaze['Latency_InitSacc_LeftEye'][2],
+										'HalfRight': Results_MeanGaze['Latency_InitSacc_LeftEye'][3],
+										'Top'      : Results_MeanGaze['Latency_InitSacc_LeftEye'][4],
+										'Bottom'   : Results_MeanGaze['Latency_InitSacc_LeftEye'][5]}
+	
+	Dict_Latency_InitSacc_RightEye = { 	'Left'     : Results_MeanGaze['Latency_InitSacc_RightEye'][0],
+										'Right'    : Results_MeanGaze['Latency_InitSacc_RightEye'][1],
+										'HalfLeft' : Results_MeanGaze['Latency_InitSacc_RightEye'][2],
+										'HalfRight': Results_MeanGaze['Latency_InitSacc_RightEye'][3],
+										'Top'      : Results_MeanGaze['Latency_InitSacc_RightEye'][4],
+										'Bottom'   : Results_MeanGaze['Latency_InitSacc_RightEye'][5]}
+	
+	Dict_LogAmpGain_LeftEye = {  		'Left'     : Results_MeanGaze['LogAmpGain_LeftEye'][0],
+										'Right'    : Results_MeanGaze['LogAmpGain_LeftEye'][1],
+										'HalfLeft' : Results_MeanGaze['LogAmpGain_LeftEye'][2],
+										'HalfRight': Results_MeanGaze['LogAmpGain_LeftEye'][3],
+										'Top'      : Results_MeanGaze['LogAmpGain_LeftEye'][4],
+										'Bottom'   : Results_MeanGaze['LogAmpGain_LeftEye'][5]}
+	
+	Dict_LogAmpGain_RightEye = { 	'Left'         : Results_MeanGaze['LogAmpGain_RightEye'][0],
+										'Right'    : Results_MeanGaze['LogAmpGain_RightEye'][1],
+										'HalfLeft' : Results_MeanGaze['LogAmpGain_RightEye'][2],
+										'HalfRight': Results_MeanGaze['LogAmpGain_RightEye'][3],
+										'Top'      : Results_MeanGaze['LogAmpGain_RightEye'][4],
+										'Bottom'   : Results_MeanGaze['LogAmpGain_RightEye'][5]}		
+	
+	Dict_FixationDurationOnTarget_LeftEye = { 	'Left'     : Results_MeanGaze['FixationDurationOnTarget_LeftEye'][0],
+												'Right'    : Results_MeanGaze['FixationDurationOnTarget_LeftEye'][1],
+												'HalfLeft' : Results_MeanGaze['FixationDurationOnTarget_LeftEye'][2],
+												'HalfRight': Results_MeanGaze['FixationDurationOnTarget_LeftEye'][3],
+												'Top'      : Results_MeanGaze['FixationDurationOnTarget_LeftEye'][4],
+												'Bottom'   : Results_MeanGaze['FixationDurationOnTarget_LeftEye'][5]}		
+
+	Dict_FixationDurationOnTarget_RightEye = { 	'Left'     : Results_MeanGaze['FixationDurationOnTarget_RightEye'][0],
+												'Right'    : Results_MeanGaze['FixationDurationOnTarget_RightEye'][1],
+												'HalfLeft' : Results_MeanGaze['FixationDurationOnTarget_RightEye'][2],
+												'HalfRight': Results_MeanGaze['FixationDurationOnTarget_RightEye'][3],
+												'Top'      : Results_MeanGaze['FixationDurationOnTarget_RightEye'][4],
+												'Bottom'   : Results_MeanGaze['FixationDurationOnTarget_RightEye'][5]}
+	
+	Dict_VariabilityOfFixation_LeftEye = { 	    'Left'     : Results_MeanGaze['VariabilityOfFixation_LeftEye'][0],
+												'Right'    : Results_MeanGaze['VariabilityOfFixation_LeftEye'][1],
+												'HalfLeft' : Results_MeanGaze['VariabilityOfFixation_LeftEye'][2],
+												'HalfRight': Results_MeanGaze['VariabilityOfFixation_LeftEye'][3],
+												'Top'      : Results_MeanGaze['VariabilityOfFixation_LeftEye'][4],
+												'Bottom'   : Results_MeanGaze['VariabilityOfFixation_LeftEye'][5]}
+	
+	Dict_VariabilityOfFixation_RightEye = { 	'Left'     : Results_MeanGaze['VariabilityOfFixation_RightEye'][0],
+												'Right'    : Results_MeanGaze['VariabilityOfFixation_RightEye'][1],
+												'HalfLeft' : Results_MeanGaze['VariabilityOfFixation_RightEye'][2],
+												'HalfRight': Results_MeanGaze['VariabilityOfFixation_RightEye'][3],
+												'Top'      : Results_MeanGaze['VariabilityOfFixation_RightEye'][4],
+												'Bottom'   : Results_MeanGaze['VariabilityOfFixation_RightEye'][5]}
+	
+	Dict_MissingDataPercent_LeftEye = { 	    'Left'     : Results_MeanGaze['MissingDataPercent_LeftEye'][0],
+												'Right'    : Results_MeanGaze['MissingDataPercent_LeftEye'][1],
+												'HalfLeft' : Results_MeanGaze['MissingDataPercent_LeftEye'][2],
+												'HalfRight': Results_MeanGaze['MissingDataPercent_LeftEye'][3],
+												'Top'      : Results_MeanGaze['MissingDataPercent_LeftEye'][4],
+												'Bottom'   : Results_MeanGaze['MissingDataPercent_LeftEye'][5]}
+	
+	Dict_MissingDataPercent_RightEye = { 	    'Left'     : Results_MeanGaze['MissingDataPercent_RightEye'][0],
+												'Right'    : Results_MeanGaze['MissingDataPercent_RightEye'][1],
+												'HalfLeft' : Results_MeanGaze['MissingDataPercent_RightEye'][2],
+												'HalfRight': Results_MeanGaze['MissingDataPercent_RightEye'][3],
+												'Top'      : Results_MeanGaze['MissingDataPercent_RightEye'][4],
+												'Bottom'   : Results_MeanGaze['MissingDataPercent_RightEye'][5]}
+	
+	
+	
+	
+	
+	
+	
+	
+	Dict_MeanGaze ={"Latency_InitSacc_LeftEye" : Dict_Latency_InitSacc_LeftEye, 
+				    "Latency_InitSacc_RightEye": Dict_Latency_InitSacc_RightEye, 
+					"LogAmpGain_LeftEye"       : Dict_LogAmpGain_LeftEye,
+					"LogAmpGain_RightEye"       : Dict_LogAmpGain_RightEye,
+					"FixationDurationOnTarget_LeftEye" : Dict_FixationDurationOnTarget_LeftEye,
+					"FixationDurationOnTarget_RightEye" : Dict_FixationDurationOnTarget_RightEye,						
+					"VariabilityOfFixation_LeftEye" : Dict_VariabilityOfFixation_LeftEye,						
+					"VariabilityOfFixation_RightEye" : Dict_VariabilityOfFixation_RightEye,						
+					"MissingDataPercent_LeftEye" : Dict_MissingDataPercent_LeftEye,						
+					"MissingDataPercent_RightEye" : Dict_MissingDataPercent_RightEye}
+			
+	# Save values from Mean Gaze
+
+	
+	SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_STEP.json"
+	py_tools.append_to_json_file(SaveDataFilename, Dict_MeanGaze)
+	
+	SaveDataFilename = RootDirectory_Results + "STEP/" + SUBJECT_NAME + "_STEP.json"
+	py_tools.append_to_json_file(SaveDataFilename, Dict_MeanGaze)	
+	
 else:
 	print("  ****************         NO DATA          ****************")
 ```

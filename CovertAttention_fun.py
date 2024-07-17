@@ -13,6 +13,8 @@ chdir(RootAnalysisFolder)
 
 import mne
 from mne.io import concatenate_raws
+from mne.stats import spatio_temporal_cluster_test, spatio_temporal_cluster_1samp_test,permutation_cluster_test
+
 import matplotlib.pyplot as plt
 plt.rcParams['figure.figsize']=(15,9)
 
@@ -22,6 +24,7 @@ from scipy import interpolate
 
 import pandas as pd
 import seaborn
+from mne.stats import permutation_t_test,f_threshold_mway_rm
 
 
 from AddPyABA_Path import PyABA_path
@@ -32,7 +35,7 @@ from pygazeanalyser.gazeplotter import draw_heatmap
 sys.path.append(PyABA_path)
 
 import pyABA_algorithms,mne_tools,py_tools,gaze_tools
-
+from scipy.interpolate import CubicSpline
 
 sys.path.append(PyABA_path)
 import py_tools,gaze_tools
@@ -56,6 +59,9 @@ class CovertAttention:
 		self.Cross_Area_Y = self.Cross_Y-int(self.Area_SquareDim/2) , self.Cross_Y+int(self.Area_SquareDim/2)
 		
 		self.Pix2DegCoeff = 1/50
+		
+		
+		
 		
 	def ReadFileandConvertEvent(self,FifFileName, DictEvent):
 		mne_raw = mne.io.read_raw_fif(FifFileName,preload=True,verbose = 'ERROR')
@@ -88,6 +94,12 @@ class CovertAttention:
 		                                orig_time=mne_raw.info['meas_date'])
 		mne_raw.set_annotations(annot_from_events,verbose='ERROR')
 		return mne_raw
+	
+	
+	
+	
+	
+	
 		
 	def PlotGazeFixation(self,Gaze_X,Gaze_Y,AttSide):
 		NbBlocks=len(Gaze_X)
@@ -146,6 +158,12 @@ class CovertAttention:
 			axs[i_block].set_title('Trial #' + str(i_block+1) + ' Attented side : ' + r"$\bf{" + AttSide[i_block] + "}$"  + ' - Cross Fixation : ' + f'{Percentage_FixationCross[i_block]:.2f}' + '%',fontsize=8)
 
 		return fig, Percentage_FixationCross
+	
+	
+	
+	
+	
+	
 	
 	
 	def PlotSaccade(self,Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,SampFreq,AttSide, KindAttention):
@@ -217,6 +235,11 @@ class CovertAttention:
 			NbSaccades_LEye[i_block] = nbsacc_LE
 			NbSaccades_REye[i_block] = nbsacc_RE
 		return NbSaccades_LEye,NbSaccades_REye
+	
+	
+	
+	
+	
 
 
 
@@ -265,9 +288,15 @@ class CovertAttention:
 			Gaze_REye_Y.append(Data_ET_Tmp[3,:])
 		
 		return Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,AttSide
+	
+	
+	
+	
+	
+	
 		
 		
-	def CompareStimUnderCond(self,mne_raw,StimLabel,linewidth,Title):
+	def CompareStimUnderCond(self,mne_raw,StimLabel,linewidth,Title,Baseline):
 		raw_eeg = mne_raw.copy()
 		
 		raw_eeg = raw_eeg.pick([ 'Fp1', 'Fp2', 'F3', 'Fz', 'F4', 'C3', 'Cz', 'C4', 'TP9', 'CP5', 'CP6', 'TP10', 'Pz'],verbose='ERROR')
@@ -310,7 +339,7 @@ class CovertAttention:
 		         event_id = Event_AttIgn_id,
 		         preload=True,
 		         proj=False,    # No additional reference
-		         baseline=(-0.1,0), #  baseline
+		         baseline=Baseline, #  baseline
 				 verbose='ERROR')
 		
 		rejection_rate = 0.15
@@ -331,6 +360,10 @@ class CovertAttention:
 		fig_stim = mne_tools.PermutCluster_plotCompare(X, colors_config,styles_config, evokeds,p_accept,2000,Title)
 		return fig_stim,Epochs		
 		
+	
+	
+	
+	
 		
 		
 		
@@ -568,6 +601,11 @@ class CovertAttention:
 	
 	
 	
+	
+	
+	
+	
+	
 
 	def ClassicCrossValidation(self,Features,nb_spatial_filters,NbPtsEpoch):
 		# ------------------------------------------------
@@ -605,6 +643,9 @@ class CovertAttention:
 		accuracy_Stim1=Accuracy_Stim1[1]
 		accuracy_Stim2=Accuracy_Stim2[1]
 		return accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Stim1,accuracy_Stim2
+	
+	
+	
 	
 	
 	
@@ -840,11 +881,641 @@ class CovertAttention:
 		accuracy_Stim2 = np.sum((p_Stim2 > .5) == Block_AttSim1) / float(NbBlocks)
  		
 		return accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Stim1,accuracy_Stim2
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+		
+	def CompareCondFromIcaCompo(self,raw,events,picks,tmin,tmax,PercentageOfEpochsRejected,StimLabel,linewidth,Title,n_permutations,rejection_rate, Baseline):
+		
+		Events, Events_dict = mne.events_from_annotations(raw,verbose='ERROR')
+		events_IgnAtt = Events
+		
+		Events_dic_selected_Att=[]
+		Events_dic_selected_Ign=[]
+		Events_selected_Att=[]
+		Events_selected_Ign=[]		
+		for evt in  Events_dict.items():
+			EvtLabel_curr = list(evt)[0]
+			if (EvtLabel_curr.find(StimLabel)>=0):
+				StimCond = EvtLabel_curr[EvtLabel_curr.find(StimLabel)+len(StimLabel) : EvtLabel_curr.find('/')]
+				AttCond = EvtLabel_curr[EvtLabel_curr.find('Att')+len('Att') : ]
+				
+				if (StimCond==AttCond):
+					Events_selected_Att.append(Events_dict[EvtLabel_curr])
+					Events_dic_selected_Att.append(EvtLabel_curr)
+				else:
+					Events_selected_Ign.append(Events_dict[EvtLabel_curr])
+					Events_dic_selected_Ign.append(EvtLabel_curr)
+				
+		
+		code_Att = 101
+		code_Ign = 100
+		events_IgnAtt=mne.event.merge_events(events_IgnAtt, Events_selected_Att, code_Att, replace_events=True)
+		events_IgnAtt=mne.event.merge_events(events_IgnAtt, Events_selected_Ign, code_Ign, replace_events=True)
+		
+		
+		Event_AttIgn_id = {StimLabel + '_Att' : code_Att, StimLabel + '_Ign' : code_Ign}
+		
+		Events_att2ICA, _ = mne.events_from_annotations(raw,event_id = {Events_dic_selected_Att[0] : Events_dict[Events_dic_selected_Att[0]], Events_dic_selected_Att[1] : Events_dict[Events_dic_selected_Att[1]]},verbose='ERROR')
+		ica_epoch,compo_ica_epoch = mne_tools.FitIcaEpoch(raw,events,picks=picks,tmin=tmin,tmax=tmax,PercentageOfEpochsRejected=int(rejection_rate*100))
+		fig_compo = ica_epoch.plot_components()
+		fig_compo.suptitle(Title)		
+		
+		raw_eeg = raw.copy().filter(0.5,20,verbose='ERROR')
+		
+		
+		
+		
+		Epochs = mne.Epochs(
+		         raw_eeg,
+		         tmin=tmin, tmax=tmax,  # From 0 to 1 seconds after epoch onset
+		         events=events_IgnAtt, 
+		         event_id = Event_AttIgn_id,
+		         preload=True,
+		         proj=False,    # No additional reference
+		         baseline=Baseline,verbose='ERROR')
+		
+		Epochs_compica = ica_epoch.get_sources(Epochs)		
+		
+		
+		
+		ThresholdPeak2peak,_,_,ixEpochs2Remove,_ = mne_tools.RejectThresh(Epochs_compica,int(rejection_rate*100))
+		
+		
+		
+		Epochs.drop(ixEpochs2Remove,verbose=False)
+		Times = Epochs_compica.times
+		Info_ev= Epochs_compica.info
+		
+		
+		Epochs_Att_data = Epochs_compica[StimLabel + '_Att'].get_data(copy=True)
+		Epochs_Ign_data = Epochs_compica[StimLabel + '_Ign'].get_data(copy=True)
+		
+		
+		
+		Evoked_Att_data = np.mean(Epochs_Att_data,axis=0)
+		Evoked_Ign_data = np.mean(Epochs_Ign_data,axis=0)
+		
+		
+		X = [Epochs_Att_data.transpose(0, 2, 1), Epochs_Ign_data.transpose(0, 2, 1)]
+		# organize data for plotting
+		colors_config = {"Att": "crimson", "Ign": 'steelblue'}
+		styles_config ={"Att": {"linewidth": linewidth[0]},"Ign": {"linewidth": linewidth[1]}}
+		
+		p_accept = 0.05	
+		
+		n_conditions = 2
+		n_replications = (X[0].shape[0])  // n_conditions
+		factor_levels = [2]      #[2, 2]  # number of levels in each factor
+		effects = 'A'  # this is the default signature for computing all effects
+		# Other possible options are 'A' or 'B' for the corresponding main effects
+		# or 'A:B' for the interaction effect only
+		pthresh = 0.01  # set threshold rather high to save some time
+		f_thresh = f_threshold_mway_rm(n_replications,factor_levels,effects,pthresh)
+		del n_conditions, n_replications, factor_levels, effects, pthresh
+		tail = 1  # f-test, so tail > 0
+		threshold = f_thresh
+		AmpMaxCond1 = np.max((np.max(Evoked_Att_data),np.abs(np.min(Evoked_Att_data))))
+		AmpMaxCond2 = np.max((np.max(Evoked_Ign_data),np.abs(np.min(Evoked_Ign_data))))
+		
+		
+		AmpMax = np.max((AmpMaxCond1,AmpMaxCond2))	
+		Label1 = list(colors_config.items())[0][0]
+		Color1 = list(colors_config.items())[0][1]
+		Linewidth1 = list(styles_config[Label1].items())[0][1]
+		Label2 = list(colors_config.items())[1][0]
+		Color2 = list(colors_config.items())[1][1]
+		Linewidth2 = list(styles_config[Label2].items())[0][1]		
+		
+		
+		Nb_compo = Evoked_Att_data.shape[0]
+		NbCol = np.int64(np.ceil(np.sqrt(Nb_compo)))
+		NbRow = np.int64(np.ceil(Nb_compo/NbCol))
+		fig  =plt.figure()
+		for i_compo in range(Nb_compo):
+			ax = plt.subplot(NbRow, NbCol, i_compo + 1)
+		
+			l, b, w, h = ax.get_position().bounds
+		# 			newpos = [l, b-0.15, w, h]
+		# 			ax.set_position(pos=newpos,which='both')
+			
+			ax.plot(Times,Evoked_Att_data[i_compo,:],color=Color1,linewidth = Linewidth1,label=Label1)
+			ax.plot(Times,Evoked_Ign_data[i_compo,:],color=Color2,linewidth = Linewidth2,label=Label2)
+			ax.set_title('IC' + str(i_compo),loc='left',fontdict={'fontsize':10})
+			ax.axvline(x=0,linestyle=':',color='k')
+# 			ax.axhline(y=0,color='k')
+			ax.set_ylim(-AmpMax,AmpMax)
+			ax.invert_yaxis()
+			ax.xaxis.set_tick_params(labelsize=7)
+			ax.yaxis.set_tick_params(labelsize=7)
+		
+			
+			T_obs, clusters, cluster_p_values, H0 = permutation_cluster_test([X[0][:,:,i_compo], X[1][:,:,i_compo]], n_permutations=n_permutations,threshold=threshold, tail=tail, n_jobs=3,out_type='mask',verbose='ERROR')
+			
+			for i_cluster in range(len(cluster_p_values)):
+				if (cluster_p_values[i_cluster]<p_accept):
+					Clust_curr = clusters[i_cluster][0]
+					ax.axvspan(Times[Clust_curr.start], Times[Clust_curr.stop-1],facecolor="crimson",alpha=0.3)
+					
+			if (i_compo == Info_ev['nchan']-1):
+				ax.legend(loc=(1,0))
+				
+		legendax = fig.add_axes([0.97-w,0.05,w,h]) 
+		legendax.set_xlabel('Time (s)',fontsize=8,labelpad=0)
+		legendax.set_ylabel('µV',fontsize=8,labelpad=0)
+		
+		legendax.set_yticks([-AmpMax,AmpMax])
+		legendax.set_yticklabels(np.round([-AmpMax,AmpMax],1), fontsize=8)
+		legendax.set_xticks(np.arange(Times[0],Times[-1],0.1))
+		legendax.set_xticklabels(np.round(np.arange(Times[0],Times[-1],0.1),1), fontsize=8)
+		legendax.invert_yaxis()
+		
+		plt.gcf().suptitle(Title)
+		plt.show()
+		
+		
+		
+		
+		
+		
+		
+		
+		
+		
+	def plotEOGCompareAttIgn (self,raw,ListChan,LabelEOG,TimeWindow_Start,TimeWindow_End,StimLabel,rejection_rate,Baseline):
+		if (LabelEOG =='Horiz'):
+			WeightMeanChan = [1,-1]
+		else:
+			WeightMeanChan = [1,1]
+
+		LowFreq_EOG = 10
+		# Create Horizontal EOG from 2 channels situated close to left and right eyes
+		raw_filt_EOG = raw.copy()
+		raw_filt_EOG.filter(None,LowFreq_EOG,picks=ListChan,verbose='ERROR')
+		raw_filt_EOG.pick(ListChan)
+
+
+
+		Events, Events_dict = mne.events_from_annotations(raw_filt_EOG,verbose='ERROR')
+		events_IgnAtt = Events
+
+		Events_dic_selected_Att=[]
+		Events_dic_selected_Ign=[]
+		Events_selected_Att=[]
+		Events_selected_Ign=[]		
+		for evt in  Events_dict.items():
+			EvtLabel_curr = list(evt)[0]
+			if (EvtLabel_curr.find(StimLabel)>=0):
+				StimCond = EvtLabel_curr[EvtLabel_curr.find(StimLabel)+len(StimLabel) : EvtLabel_curr.find('/')]
+				AttCond = EvtLabel_curr[EvtLabel_curr.find('Att')+len('Att') : ]
+				
+				if (StimCond==AttCond):
+					Events_selected_Att.append(Events_dict[EvtLabel_curr])
+					Events_dic_selected_Att.append(EvtLabel_curr)
+				else:
+					Events_selected_Ign.append(Events_dict[EvtLabel_curr])
+					Events_dic_selected_Ign.append(EvtLabel_curr)
+				
+
+		code_Att = 101
+		code_Ign = 100
+		events_IgnAtt=mne.event.merge_events(events_IgnAtt, Events_selected_Att, code_Att, replace_events=True)
+		events_IgnAtt=mne.event.merge_events(events_IgnAtt, Events_selected_Ign, code_Ign, replace_events=True)
+
+
+		Event_AttIgn_id = {StimLabel + '_Att' : code_Att, StimLabel + '_Ign' : code_Ign}
+
+
+		ListCond = [StimLabel + '_Att',StimLabel + '_Ign']
+
+
+		# Epoching Horizontal EOG for each condition
+		epochs_EOG = mne.Epochs(
+		         raw_filt_EOG,
+		         tmin=TimeWindow_Start, tmax=TimeWindow_End,  # From -1.0 to 2.5 seconds after epoch onset
+		         events=events_IgnAtt, 
+		         event_id = Event_AttIgn_id,
+		         preload=True,
+		         proj=False,    # No additional reference
+		         baseline=Baseline,#(TimeWindow_Start,0), #  baseline
+				 verbose = 'ERROR'
+		 	 )
+
+
+
+
+		ThresholdPeak2peak,_,_,ixEpochs2Remove,_ = mne_tools.RejectThresh(epochs_EOG,int(rejection_rate*100))
+		epochs_EOG.drop(ixEpochs2Remove,verbose=False)
+
+
+		DictResults={}
+		for cond in ListCond:
+			exec(cond + "_EOG_" + LabelEOG + "_dataChan = epochs_EOG['" + cond + "'].get_data(copy=True)")
+			exec(cond + "_EOG_" + LabelEOG + "_data = WeightMeanChan[0] * " + cond + "_EOG_" + LabelEOG + "_dataChan[:,1,:] +  WeightMeanChan[1] * " + cond + "_EOG_" + LabelEOG + "_dataChan[:,0,:]")
+			exec("DictResults['" + cond + "'] = " + cond + "_EOG_" + LabelEOG + "_data")
+
+
+
+		Times = epochs_EOG.times
+		Info_ev= epochs_EOG.info
+
+
+		Epochs_Att_data = DictResults[ StimLabel + '_Att'] 
+		Epochs_Ign_data = DictResults[ StimLabel + '_Ign'] 
+
+		Evoked_Att_data = np.mean(Epochs_Att_data,axis=0)
+		Evoked_Ign_data = np.mean(Epochs_Ign_data,axis=0)
+
+
+		X = [Epochs_Att_data,Epochs_Ign_data]
+		# organize data for plotting
+		colors_config = {"Att": "crimson", "Ign": 'steelblue'}
+
+		p_accept = 0.05	
+
+		n_conditions = 2
+		n_replications = (X[0].shape[0])  // n_conditions
+		factor_levels = [2]      #[2, 2]  # number of levels in each factor
+		effects = 'A'  # this is the default signature for computing all effects
+		# Other possible options are 'A' or 'B' for the corresponding main effects
+		# or 'A:B' for the interaction effect only
+		pthresh = 0.01  # set threshold rather high to save some time
+		f_thresh = f_threshold_mway_rm(n_replications,factor_levels,effects,pthresh)
+		del n_conditions, n_replications, factor_levels, effects, pthresh
+		tail = 1  # f-test, so tail > 0
+		threshold = f_thresh
+		n_tests,n_samples = X[0].shape
+
+
+
+
+		fig =plt.figure()
+		NbTrials_Att = Epochs_Att_data.shape[0]
+		NbTrials_Ign = Epochs_Ign_data.shape[0]
+
+		for i_trials in range(NbTrials_Att):
+			data_curr = Epochs_Att_data[i_trials,:]
+			plt.plot(Times,data_curr,colors_config['Att'],linewidth=0.1)
+			
+		for i_trials in range(NbTrials_Ign):	
+			data_curr = Epochs_Ign_data[i_trials,:]
+			plt.plot(Times,data_curr,colors_config['Ign'],linewidth=0.1)	
+			
+			
+		plt.plot(Times,Evoked_Att_data,colors_config['Att'],linewidth=3.5,label='Att')
+		plt.plot(Times,Evoked_Ign_data,colors_config['Ign'],linewidth=3.5,label='Ign')
+		fig.get_axes()[0].legend()
+
+
+		n_permutations = 2000
+		T_obs, clusters, cluster_p_values, H0 = permutation_cluster_test([X[0], X[1]], n_permutations=n_permutations,threshold=threshold, tail=tail, n_jobs=3,out_type='mask',verbose='ERROR')
+
+		for i_cluster in range(len(cluster_p_values)):
+			if (cluster_p_values[i_cluster]<p_accept):
+				Clust_curr = clusters[i_cluster][0]
+				fig.get_axes()[0].axvspan(Times[Clust_curr.start], Times[Clust_curr.stop-1],facecolor="crimson",alpha=0.3)
+
+		fig.get_axes()[0].axvline(x=0,linestyle=':',color='k')
+# 		fig.get_axes()[0].axhline(y=0,linestyle=':',color='k')
+		fig.get_axes()[0].xaxis.set_tick_params(labelsize=9)
+		fig.get_axes()[0].yaxis.set_tick_params(labelsize=9)
+		plt.gcf().suptitle(StimLabel + ' - EOG ' + LabelEOG)
+	
+	
+	
+
+
+		
+	def plotDiamPupillCompareStdDevAtt (self,raw,ListChan,TimeWindow_Start,TimeWindow_End,rejection_rate,Baseline):
+
+		# Create Horizontal EOG from 2 channels situated close to left and right eyes
+		raw_filt_DiamPupill = raw.copy()
+		raw_filt_DiamPupill.pick(ListChan)
+
+
+
+		Events, Events_dict = mne.events_from_annotations(raw_filt_DiamPupill,verbose='ERROR')
+
+		Events_dic_selected_Att_Std=[]
+		Events_dic_selected_Att_Dev=[]
+		Events_selected_Att_Std=[]
+		Events_selected_Att_Dev=[]		
+		for evt in  Events_dict.items():
+			EvtLabel_curr = list(evt)[0]
+			if (EvtLabel_curr.find('Std')>=0):
+				StimCond = EvtLabel_curr[EvtLabel_curr.find('Std')+len('Std') : EvtLabel_curr.find('/')]
+				AttCond = EvtLabel_curr[EvtLabel_curr.find('Att')+len('Att') : ]				
+				if (StimCond==AttCond):
+					Events_selected_Att_Std.append(Events_dict[EvtLabel_curr])
+					Events_dic_selected_Att_Std.append(EvtLabel_curr)
+			if (EvtLabel_curr.find('Dev')>=0):
+				StimCond = EvtLabel_curr[EvtLabel_curr.find('Dev')+len('Dev') : EvtLabel_curr.find('/')]
+				AttCond = EvtLabel_curr[EvtLabel_curr.find('Att')+len('Att') : ]				
+				if (StimCond==AttCond):
+					Events_selected_Att_Dev.append(Events_dict[EvtLabel_curr])
+					Events_dic_selected_Att_Dev.append(EvtLabel_curr)
+							
+
+				
+
+		code_StdAtt = 101
+		code_DevAtt = 100
+		Event_AttStdDev=mne.event.merge_events(Events, Events_selected_Att_Std, code_StdAtt, replace_events=True)
+		Event_AttStdDev=mne.event.merge_events(Event_AttStdDev, Events_selected_Att_Dev, code_DevAtt, replace_events=True)
+
+
+		Event_AttStdDev_id = {'Std_Att' : code_StdAtt, 'Dev_Att' : code_DevAtt}
+
+		# Epoching Horizontal EOG for each condition
+		epochs_DiamPupill = mne.Epochs(
+		         raw_filt_DiamPupill,
+		         tmin=TimeWindow_Start, tmax=TimeWindow_End,  # From -1.0 to 2.5 seconds after epoch onset
+		         events=Event_AttStdDev, 
+		         event_id = Event_AttStdDev_id,
+		         preload=True,
+		         proj=False,    # No additional reference
+		         baseline=Baseline, # No baseline
+				 verbose = 'ERROR'
+		 	 )
+
+
+		Times = epochs_DiamPupill.times
+		Info_ev= epochs_DiamPupill .info
+		
 		
 			
 		
 		
+
+
+		Epochs_StdAtt_data = epochs_DiamPupill['Std_Att'].get_data(copy=True)
+		Epochs_DevAtt_data = epochs_DiamPupill['Dev_Att'].get_data(copy=True)
+
+		Evoked_StdAtt_data = np.nanmean(Epochs_StdAtt_data,axis=0)
+		Evoked_DevAtt_data = np.nanmean(Epochs_DevAtt_data,axis=0)
+
+		fig =plt.figure()
+		for i_chan in range(Evoked_DevAtt_data.shape[0]):
+			X = [Epochs_StdAtt_data[:,i_chan,:],Epochs_DevAtt_data[:,i_chan,:]]
+			# organize data for plotting
+			colors_config = {"Std": "b", "Dev": 'r'}
+	
+			p_accept = 0.05	
+	
+			n_conditions = 2
+			n_replications = (X[0].shape[0])  // n_conditions
+			factor_levels = [2]      #[2, 2]  # number of levels in each factor
+			effects = 'A'  # this is the default signature for computing all effects
+			# Other possible options are 'A' or 'B' for the corresponding main effects
+			# or 'A:B' for the interaction effect only
+			pthresh = 0.01  # set threshold rather high to save some time
+			f_thresh = f_threshold_mway_rm(n_replications,factor_levels,effects,pthresh)
+			del n_conditions, n_replications, factor_levels, effects, pthresh
+			tail = 1  # f-test, so tail > 0
+			threshold = f_thresh
+			n_tests,n_samples = X[0].shape
+	
+			ax = plt.subplot(1, Evoked_DevAtt_data.shape[0],  i_chan+ 1)
+	
+	
+				
+			ax.plot(Times,Evoked_StdAtt_data[i_chan,:],colors_config['Std'],linewidth=1.5,label='Std')
+			ax.plot(Times,Evoked_DevAtt_data[i_chan,:],colors_config['Dev'],linewidth=3.5,label='Dev')
+			ax.legend()
+	
+	
+			n_permutations = 2000
+			T_obs, clusters, cluster_p_values, H0 = permutation_cluster_test([X[0], X[1]], n_permutations=n_permutations,threshold=threshold, tail=tail, n_jobs=3,out_type='mask',verbose='ERROR')
+	
+			for i_cluster in range(len(cluster_p_values)):
+				if (cluster_p_values[i_cluster]<p_accept):
+					Clust_curr = clusters[i_cluster][0]
+					fig.get_axes()[0].axvspan(Times[Clust_curr.start], Times[Clust_curr.stop-1],facecolor="crimson",alpha=0.3)
+	
+			ax.axvline(x=0,linestyle=':',color='k')
+# 			ax.axhline(y=0,linestyle=':',color='k')
+			ax.xaxis.set_tick_params(labelsize=9)
+			ax.yaxis.set_tick_params(labelsize=9)
+			ax.set_title(ListChan[i_chan])
+			plt.gcf().suptitle('Std vs Dev - Pupill Diameter ')		
 		
+
+
+
+	def plotGazeCompareAttIgn (self,raw,ListChan,TimeWindow_Start,TimeWindow_End,StimLabel,rejection_rate,Baseline):
+
+		# Create Horizontal EOG from 2 channels situated close to left and right eyes
+		raw_filt_Gaze = raw.copy()
+		raw_filt_Gaze.pick(ListChan)
+
+
+		Events, Events_dict = mne.events_from_annotations(raw_filt_Gaze,verbose='ERROR')
+		events_IgnAtt = Events
+
+		Events_dic_selected_Att=[]
+		Events_dic_selected_Ign=[]
+		Events_selected_Att=[]
+		Events_selected_Ign=[]		
+		for evt in  Events_dict.items():
+			EvtLabel_curr = list(evt)[0]
+			if (EvtLabel_curr.find(StimLabel)>=0):
+				StimCond = EvtLabel_curr[EvtLabel_curr.find(StimLabel)+len(StimLabel) : EvtLabel_curr.find('/')]
+				AttCond = EvtLabel_curr[EvtLabel_curr.find('Att')+len('Att') : ]
+				
+				if (StimCond==AttCond):
+					Events_selected_Att.append(Events_dict[EvtLabel_curr])
+					Events_dic_selected_Att.append(EvtLabel_curr)
+				else:
+					Events_selected_Ign.append(Events_dict[EvtLabel_curr])
+					Events_dic_selected_Ign.append(EvtLabel_curr)
+				
+
+		code_Att = 101
+		code_Ign = 100
+		events_IgnAtt=mne.event.merge_events(events_IgnAtt, Events_selected_Att, code_Att, replace_events=True)
+		events_IgnAtt=mne.event.merge_events(events_IgnAtt, Events_selected_Ign, code_Ign, replace_events=True)
+
+
+		Event_AttIgn_id = {StimLabel + '_Att' : code_Att, StimLabel + '_Ign' : code_Ign}
+
+
+		ListCond = [StimLabel + '_Att',StimLabel + '_Ign']
+
+
+		# Epoching Horizontal EOG for each condition
+		epochs_Gaze = mne.Epochs(
+		         raw_filt_Gaze,
+		         tmin=TimeWindow_Start, tmax=TimeWindow_End,  # From -1.0 to 2.5 seconds after epoch onset
+		         events=events_IgnAtt, 
+		         event_id = Event_AttIgn_id,
+		         preload=True,
+		         proj=False,    # No additional reference
+		         baseline=Baseline, # No baseline
+				 verbose = 'ERROR'
+		 	 )
+
+
+		Times = epochs_Gaze.times
+		Info_ev= epochs_Gaze.info
+		
+		NbChan = epochs_Gaze.info['nchan']
+		
+			
+		fig =plt.figure()
+
+		
+		for i_coord in range(NbChan):
+			ax = plt.subplot(1, 2, i_coord + 1)
+			
+			CoordLabel = epochs_Gaze.info['ch_names'][i_coord][5:]
+			
+
+			Epochs_Att_data = (epochs_Gaze[ StimLabel + '_Att'].get_data(copy=True)[:,i_coord,:]-(i_coord==0)*self.Cross_X - (i_coord==1)*self.Cross_Y)*self.Pix2DegCoeff
+			Epochs_Ign_data = (epochs_Gaze[ StimLabel + '_Ign'].get_data(copy=True)[:,i_coord,:]-(i_coord==0)*self.Cross_X - (i_coord==1)*self.Cross_Y)*self.Pix2DegCoeff
+	
+			Evoked_Att_data = np.nanmean(Epochs_Att_data,axis=0)
+			Evoked_Ign_data = np.nanmean(Epochs_Ign_data,axis=0)
+	
+	
+			X = [Epochs_Att_data,Epochs_Ign_data]
+			# organize data for plotting
+			colors_config = {"Att": "crimson", "Ign": 'steelblue'}
+	
+			p_accept = 0.05	
+	
+			n_conditions = 2
+			n_replications = (X[0].shape[0])  // n_conditions
+			factor_levels = [2]      #[2, 2]  # number of levels in each factor
+			effects = 'A'  # this is the default signature for computing all effects
+			# Other possible options are 'A' or 'B' for the corresponding main effects
+			# or 'A:B' for the interaction effect only
+			pthresh = 0.01  # set threshold rather high to save some time
+			f_thresh = f_threshold_mway_rm(n_replications,factor_levels,effects,pthresh)
+			del n_conditions, n_replications, factor_levels, effects, pthresh
+			tail = 1  # f-test, so tail > 0
+			threshold = f_thresh
+			n_tests,n_samples = X[0].shape
+	
+	
+	
+	
+	
+	
+
+	
+	
+			NbTrials_Att = Epochs_Att_data.shape[0]
+			NbTrials_Ign = Epochs_Ign_data.shape[0]
+	
+			for i_trials in range(NbTrials_Att):
+				data_curr = Epochs_Att_data[i_trials,:]
+				ax.plot(Times,data_curr,colors_config['Att'],linewidth=0.1)
+				
+			for i_trials in range(NbTrials_Ign):	
+				data_curr = Epochs_Ign_data[i_trials,:]
+				ax.plot(Times,data_curr,colors_config['Ign'],linewidth=0.1)	
+				
+				
+			ax.plot(Times,Evoked_Att_data,colors_config['Att'],linewidth=3.5,label='Att')
+			ax.plot(Times,Evoked_Ign_data,colors_config['Ign'],linewidth=3.5,label='Ign')
+			ax.set_xlabel('Time (s)',fontsize=6)            
+			ax.set_ylabel('Eye Position (°)',fontsize=6)
+			ax.legend()
+	
+	
+			n_permutations = 2000
+			T_obs, clusters, cluster_p_values, H0 = permutation_cluster_test([X[0], X[1]], n_permutations=n_permutations,threshold=threshold, tail=tail, n_jobs=3,out_type='mask',verbose='ERROR')
+	
+			for i_cluster in range(len(cluster_p_values)):
+				if (cluster_p_values[i_cluster]<p_accept):
+					Clust_curr = clusters[i_cluster][0]
+					ax.axvspan(Times[Clust_curr.start], Times[Clust_curr.stop-1],facecolor="crimson",alpha=0.3)
+	
+			ax.axvline(x=0,linestyle=':',color='k')
+# 			ax.axhline(y=0,linestyle=':',color='k')
+			ax.xaxis.set_tick_params(labelsize=9)
+			ax.yaxis.set_tick_params(labelsize=9)
+			ax.set_title(CoordLabel)
+		
+		
+		plt.gcf().suptitle(StimLabel + ' - Gaze ')		
+		
+		
+
+	def GazeSpectralAnalysis(self,raw,ListChan,FreqMin,FreqMax,DeltaF):
+		raw_Gaze = raw.copy()
+		raw_Gaze.pick(ListChan)
+		
+		Freqs_Band = np.arange(FreqMin,FreqMax,DeltaF)
+		
+		raw_Gaze_data = raw_Gaze._data
+		NbChan = raw_Gaze_data.shape[0]
+		
+		for i_chan in range(NbChan):
+			if ((ListChan[i_chan].find('_X'))>=0):
+				raw_Gaze_data[i_chan,:] = (raw_Gaze_data[i_chan,:] - self.Cross_X ) * self.Pix2DegCoeff
+			else:
+				raw_Gaze_data[i_chan,:] = (raw_Gaze_data[i_chan,:] - self.Cross_Y ) * self.Pix2DegCoeff
+		
+		frequence_echantillonnage = raw_Gaze.info['sfreq']
+
+		Events, Events_dict = mne.events_from_annotations(raw_Gaze,verbose='ERROR')
+		Events_dictStim = {}
+		for evt in  Events_dict.items():
+			EvtLabel_curr = list(evt)[0]
+			if ((EvtLabel_curr.find('Std')>=0) | (EvtLabel_curr.find('Dev')>=0)):
+				Events_dictStim.update({EvtLabel_curr : Events_dict[EvtLabel_curr]})
+				
+				
+		Events_stim,_ = mne.events_from_annotations(raw_Gaze,event_id=Events_dictStim,verbose='ERROR')
+		
+		ix_BegEndTrial = np.where(np.diff(Events_stim[:,0])>raw.info['sfreq'])[0]
+		
+		
+		ix_Begin = np.concatenate(([Events_stim[0,0]],Events_stim[ix_BegEndTrial-1,0]),axis=0)
+		ix_End = np.concatenate((Events_stim[ix_BegEndTrial,0],[Events_stim[-1,0]]),axis=0)
+		
+		TrialsDuration = ix_End-ix_Begin
+		
+		NbTrials = len(ix_Begin)
+
+		Spectre_Gaze = np.zeros((NbTrials,NbChan,len(Freqs_Band)))
+		for i_trial in range(NbTrials):
+			Sig_curr = raw_Gaze_data[:,ix_Begin[i_trial]:ix_End[i_trial]]
+			for i_chan in range(NbChan):
+				Sig_chan = py_tools.linearly_interpolate_nans(Sig_curr[i_chan,:])
+				# Calculer le spectre
+				freqs, spectre,_ = py_tools.calculer_spectre(Sig_chan, frequence_echantillonnage)
+				spline = CubicSpline(freqs, spectre) 
+				Spectre_Gaze[i_trial,i_chan,:] = spline(Freqs_Band)
+				
+		
+		
+		plt.figure()
+		NbCol = np.int64(np.ceil(np.sqrt(NbChan)))
+		NbRow = np.int64(np.ceil(NbChan/NbCol))
+		
+		for i_chan in range(NbChan):
+			ax = plt.subplot(NbRow, NbCol, i_chan + 1) 
+			ax.plot(Freqs_Band,np.nanmean(Spectre_Gaze[:,i_chan,:],axis=0),linewidth=1.5,color='b')
+			ax.set_title(ListChan[i_chan],fontsize = 9)
+			ax.set_xlabel('Frequency (Hz)',fontsize=7)            
+			ax.set_ylabel('Amplitude ',fontsize=7)
+			ax.xaxis.set_tick_params(labelsize=8)
+			ax.yaxis.set_tick_params(labelsize=8)
+			
+		plt.gcf().suptitle("Spectra of Eye Movements")		
+
+
+
+
 		
 		
 if __name__ == "__main__":	
@@ -863,14 +1534,14 @@ if __name__ == "__main__":
 		
 		# Set Filename
 		FifFileName  = glob.glob(paths[i_suj] + '/*_VisAtt_Horiz.raw.fif')[0]
-			
-		# Read fif filename and convert in raw object
+# 			
+# 		# Read fif filename and convert in raw object
 		CovertAtt_Horiz = CovertAttention()
 		DictEvent_Horiz = { 'StdLeft/AttLeft'   : 1 , 'DevLeft/AttLeft'   : 2 ,
-			                  'StdRight/AttLeft'  : 3 , 'DevRight/AttLeft'  : 4 , 
-			                  'StdLeft/AttRight'  : 11, 'DevLeft/AttRight'  : 12,
-			                  'StdRight/AttRight' : 13, 'DevRight/AttRight' : 14,
-			                  'Instruct/AttLeft'  : 9 , 'Instruct/AttRight' : 10}
+ 			                  'StdRight/AttLeft'  : 3 , 'DevRight/AttLeft'  : 4 , 
+ 			                  'StdLeft/AttRight'  : 11, 'DevLeft/AttRight'  : 12,
+ 			                  'StdRight/AttRight' : 13, 'DevRight/AttRight' : 14,
+ 			                  'Instruct/AttLeft'  : 9 , 'Instruct/AttRight' : 10}
 		
 		mne_rawHorizCovAtt = CovertAtt_Horiz.ReadFileandConvertEvent(FifFileName, DictEvent_Horiz)
 
@@ -887,27 +1558,48 @@ if __name__ == "__main__":
 		CovertAtt_Horiz.PlotSaccade(Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,mne_rawHorizCovAtt.info['sfreq'],AttSide,'Hori')
 		
 		
-		figStd,EpochStd = CovertAtt_Horiz.CompareStimUnderCond(mne_rawHorizCovAtt,'Std',[1,1],'Standards')
-		figDev,EpochDev = CovertAtt_Horiz.CompareStimUnderCond(mne_rawHorizCovAtt,'Dev',[2.5,2.5],'Deviants')
+		figStd,EpochStd = CovertAtt_Horiz.CompareStimUnderCond(mne_rawHorizCovAtt,'Std',[1,1],'Standards',None)
+		figDev,EpochDev = CovertAtt_Horiz.CompareStimUnderCond(mne_rawHorizCovAtt,'Dev',[2.5,2.5],'Deviants',None)
+		Events_Horiz, _ = mne.events_from_annotations(mne_rawHorizCovAtt,verbose='ERROR')
+ 	
+		fig_CompareCond_IC_Std_Horiz = CovertAtt_Horiz.CompareCondFromIcaCompo(mne_rawHorizCovAtt,Events_Horiz,['eeg'],-0.1,1.0,0.15,'Std',[1,1],'Standards Horizontal',2000,0.15,None)
+		fig_CompareCond_IC_Dev_Horiz = CovertAtt_Horiz.CompareCondFromIcaCompo(mne_rawHorizCovAtt,Events_Horiz,['eeg'],-0.1,1.0,0.15,'Dev',[2.5,2.5],'Deviants Horizontal',2000,0.15,None)
 		
-		Behav_Acc_Horiz,TabNbStimPerBlock_Horiz,figFeatures_Horiz,Features_Horiz,nb_spatial_filters,NbPtsEpoch= CovertAtt_Horiz.ComputeFeatures(mne_rawHorizCovAtt)
-		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Left,accuracy_Right = CovertAtt_Horiz.ClassicCrossValidation(Features_Horiz,nb_spatial_filters,NbPtsEpoch)
-		print("   *********** Classic X-Validation ")
-		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
-		print("   ***********   ")
-		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
-		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
-		print("     Accuracy Stim Left Only   :  " ,  "{:.2f}".format(accuracy_Left))
-		print("     Accuracy Stim Right Only  :  " , "{:.2f}".format(accuracy_Right))	
-			
-		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Left,accuracy_Right = CovertAtt_Horiz.ComputeAccuracy(mne_rawHorizCovAtt,TabNbStimPerBlock_Horiz)
-		print("   *********** X-Validation with retrained Xdawn ")
-		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
-		print("   ***********   ")
-		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
-		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
-		print("     Accuracy Stim Left Only   :  " ,  "{:.2f}".format(accuracy_Left))
-		print("     Accuracy Stim RightOnly  :  " , "{:.2f}".format(accuracy_Right))
+		CovertAtt_Horiz.plotEOGCompareAttIgn (mne_rawHorizCovAtt,['EOGLef','EOGRig'],'Horiz',-0.1,0.6,'Std',0.05,None)	
+		CovertAtt_Horiz.plotEOGCompareAttIgn (mne_rawHorizCovAtt,['EOGLef','EOGRig'],'Horiz',-0.1,0.6,'Dev',0.05,None)	
+		
+		CovertAtt_Horiz.plotEOGCompareAttIgn (mne_rawHorizCovAtt,['Fp1','Fp2'],'Verti',-0.1,0.6,'Std',0.05,None)	
+		CovertAtt_Horiz.plotEOGCompareAttIgn (mne_rawHorizCovAtt,['Fp1','Fp2'],'Verti',-0.1,0.6,'Dev',0.05,None)	
+
+		
+		
+		CovertAtt_Horiz.plotGazeCompareAttIgn (mne_rawHorizCovAtt,['Gaze_LEye_X','Gaze_LEye_Y'],-0.1,0.6,'Std',0.05,None)
+		CovertAtt_Horiz.plotGazeCompareAttIgn (mne_rawHorizCovAtt,['Gaze_LEye_X','Gaze_LEye_Y'],-0.1,0.6,'Dev',0.05,None)
+		CovertAtt_Horiz.plotGazeCompareAttIgn (mne_rawHorizCovAtt,['Gaze_REye_X','Gaze_REye_Y'],-0.1,0.6,'Std',0.05,None)
+		CovertAtt_Horiz.plotGazeCompareAttIgn (mne_rawHorizCovAtt,['Gaze_REye_X','Gaze_REye_Y'],-0.1,0.6,'Dev',0.05,None)		
+		
+		CovertAtt_Horiz.plotDiamPupillCompareStdDevAtt (mne_rawHorizCovAtt,['PupDi_LEye','PupDi_REye'],-0.1,0.6,0.05,None)
+		
+		CovertAtt_Horiz.GazeSpectralAnalysis(mne_rawHorizCovAtt,['Gaze_LEye_X','Gaze_LEye_Y','Gaze_REye_X','Gaze_REye_Y'],0.25,15,0.1)
+		
+# 		Behav_Acc_Horiz,TabNbStimPerBlock_Horiz,figFeatures_Horiz,Features_Horiz,nb_spatial_filters,NbPtsEpoch= CovertAtt_Horiz.ComputeFeatures(mne_rawHorizCovAtt)
+# 		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Left,accuracy_Right = CovertAtt_Horiz.ClassicCrossValidation(Features_Horiz,nb_spatial_filters,NbPtsEpoch)
+# 		print("   *********** Classic X-Validation ")
+# 		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+# 		print("   ***********   ")
+# 		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+# 		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+# 		print("     Accuracy Stim Left Only   :  " ,  "{:.2f}".format(accuracy_Left))
+# 		print("     Accuracy Stim Right Only  :  " , "{:.2f}".format(accuracy_Right))	
+# 			
+# 		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Left,accuracy_Right = CovertAtt_Horiz.ComputeAccuracy(mne_rawHorizCovAtt,TabNbStimPerBlock_Horiz)
+# 		print("   *********** X-Validation with retrained Xdawn ")
+# 		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+# 		print("   ***********   ")
+# 		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+# 		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+# 		print("     Accuracy Stim Left Only   :  " ,  "{:.2f}".format(accuracy_Left))
+# 		print("     Accuracy Stim RightOnly  :  " , "{:.2f}".format(accuracy_Right))
 		
 		
 		
@@ -925,106 +1617,128 @@ if __name__ == "__main__":
 			                  'StdBottom/AttBottom' : 13, 'DevBottom/AttBottom' : 14,
 			                  'Instruct/AttUp'  : 9 , 'Instruct/AttBottom' : 10 }
 		
-		mne_rawVertiCovAtt = CovertAtt_Verti.ReadFileandConvertEvent(FifFileName, DictEvent_Verti)
+# 		mne_rawVertiCovAtt = CovertAtt_Verti.ReadFileandConvertEvent(FifFileName, DictEvent_Verti)
 
-		
-		Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,AttSide = CovertAtt_Verti.SetGazeData(mne_rawVertiCovAtt)
+# 		
+# 		Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,AttSide = CovertAtt_Verti.SetGazeData(mne_rawVertiCovAtt)
 
-		
-		fig_Leye,Perct_FixCross_Leye = CovertAtt_Verti.PlotGazeFixation(Gaze_LEye_X,Gaze_LEye_Y,AttSide)
-		fig_Leye.suptitle('Vertical -  Up Eye Gaze Fixation')
+# 		
+# 		fig_Leye,Perct_FixCross_Leye = CovertAtt_Verti.PlotGazeFixation(Gaze_LEye_X,Gaze_LEye_Y,AttSide)
+# 		fig_Leye.suptitle('Vertical -  Up Eye Gaze Fixation')
 
-		fig_Reye,Perct_FixCross_Reye = CovertAtt_Verti.PlotGazeFixation(Gaze_REye_X,Gaze_REye_Y,AttSide)
-		fig_Reye.suptitle('Vertical -  Bottom Eye Gaze Fixation')
+# 		fig_Reye,Perct_FixCross_Reye = CovertAtt_Verti.PlotGazeFixation(Gaze_REye_X,Gaze_REye_Y,AttSide)
+# 		fig_Reye.suptitle('Vertical -  Bottom Eye Gaze Fixation')
+# 		
+# 		CovertAtt_Verti.PlotSaccade(Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,mne_rawVertiCovAtt.info['sfreq'],AttSide,'Hori')
+# 		
+# 		
+# 		figStd,EpochStd = CovertAtt_Verti.CompareStimUnderCond(mne_rawVertiCovAtt,'Std',[1,1],'Standards')
+# 		figDev,EpochDev = CovertAtt_Verti.CompareStimUnderCond(mne_rawVertiCovAtt,'Dev',[2.5,2.5],'Deviants')
+# 		Events_Verti, _ = mne.events_from_annotations(mne_rawVertiCovAtt,verbose='ERROR')
+
+# 		fig_CompareCond_IC_Std_Vert = CovertAtt_Verti.CompareCondFromIcaCompo(mne_rawVertiCovAtt,Events_Verti,['eeg'],-0.1,1.0,0.15,'Std',[1,1],'Standards Vertical',2000,0.15)
+# 		fig_CompareCond_IC_Dev_Vert = CovertAtt_Verti.CompareCondFromIcaCompo(mne_rawVertiCovAtt,Events_Verti,['eeg'],-0.1,1.0,0.15,'Dev',[2.5,2.5],'Deviants Vertical',2000,0.15)
+# 		
+
+# 		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['EOGLef','EOGRig'],'Horiz',-0.1,0.6,[1,1],'Std',0.05)	
+# 		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['EOGLef','EOGRig'],'Horiz',-0.1,0.6,[2.5,2.5],'Dev',0.05)	
+# 		
+# 		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['Fp1','Fp2'],'Verti',-0.1,0.6,'Std',0.05)	
+# 		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['Fp1','Fp2'],'Verti',-0.1,0.6,'Dev',0.05)	
+
+# 		CovertAtt_Verti.plotDiamPupillCompareAttIgn(mne_rawVertiCovAtt,['PupDi_LEye','PupDi_REye'],-0.1,0.6,'Std',0.05)	
+# 		CovertAtt_Verti.plotDiamPupillCompareAttIgn(mne_rawVertiCovAtt,['PupDi_LEye','PupDi_REye'],-0.1,0.6,'Dev',0.05)	
 		
-		CovertAtt_Verti.PlotSaccade(Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,mne_rawVertiCovAtt.info['sfreq'],AttSide,'Hori')
-		
-		
-		figStd,EpochStd = CovertAtt_Verti.CompareStimUnderCond(mne_rawVertiCovAtt,'Std',[1,1],'Standards')
-		figDev,EpochDev = CovertAtt_Verti.CompareStimUnderCond(mne_rawVertiCovAtt,'Dev',[2.5,2.5],'Deviants')
-		
-		Behav_Acc_Verti,TabNbStimPerBlock_Verti,figFeatures_Verti,Features_Verti,nb_spatial_filters,NbPtsEpoch= CovertAtt_Verti.ComputeFeatures(mne_rawVertiCovAtt)
-		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Up,accuracy_Bottom = CovertAtt_Verti.ClassicCrossValidation(Features_Horiz,nb_spatial_filters,NbPtsEpoch)
-		print("   *********** Classic X-Validation ")
-		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
-		print("   ***********   ")
-		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
-		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
-		print("     Accuracy Stim Up Only   :  " ,  "{:.2f}".format(accuracy_Up))
-		print("     Accuracy Stim Bottom Only  :  " , "{:.2f}".format(accuracy_Bottom))	
-			
-		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Up,accuracy_Bottom = CovertAtt_Verti.ComputeAccuracy(mne_rawVertiCovAtt,TabNbStimPerBlock_Horiz)
-		print("   *********** X-Validation with retrained Xdawn ")
-		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
-		print("   ***********   ")
-		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
-		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
-		print("     Accuracy Stim Up Only   :  " ,  "{:.2f}".format(accuracy_Up))
-		print("     Accuracy Stim BottomOnly  :  " , "{:.2f}".format(accuracy_Bottom))
+
+# 		CovertAtt_Verti.plotGazeCompareAttIgn (mne_rawVertiCovAtt,['Gaze_LEye_X','Gaze_LEye_Y'],-0.1,0.6,'Std',0.05)
+# 		CovertAtt_Verti.plotGazeCompareAttIgn (mne_rawVertiCovAtt,['Gaze_LEye_X','Gaze_LEye_Y'],-0.1,0.6,'Dev',0.05)
+# 		Behav_Acc_Verti,TabNbStimPerBlock_Verti,figFeatures_Verti,Features_Verti,nb_spatial_filters,NbPtsEpoch= CovertAtt_Verti.ComputeFeatures(mne_rawVertiCovAtt)
+# 		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Up,accuracy_Bottom = CovertAtt_Verti.ClassicCrossValidation(Features_Horiz,nb_spatial_filters,NbPtsEpoch)
+# 		print("   *********** Classic X-Validation ")
+# 		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+# 		print("   ***********   ")
+# 		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+# 		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+# 		print("     Accuracy Stim Up Only   :  " ,  "{:.2f}".format(accuracy_Up))
+# 		print("     Accuracy Stim Bottom Only  :  " , "{:.2f}".format(accuracy_Bottom))	
+# 			
+# 		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Up,accuracy_Bottom = CovertAtt_Verti.ComputeAccuracy(mne_rawVertiCovAtt,TabNbStimPerBlock_Horiz)
+# 		print("   *********** X-Validation with retrained Xdawn ")
+# 		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+# 		print("   ***********   ")
+# 		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+# 		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+# 		print("     Accuracy Stim Up Only   :  " ,  "{:.2f}".format(accuracy_Up))
+# 		print("     Accuracy Stim BottomOnly  :  " , "{:.2f}".format(accuracy_Bottom))
 		
 		
 		
 		
 		# MERGE
 		
-		FifFileName_Horiz  = glob.glob(paths[i_suj] + '/*_VisAtt_Horiz.raw.fif')[0]
-		FifFileName_Verti  = glob.glob(paths[i_suj] + '/*_VisAtt_Verti.raw.fif')[0]
-			
-		# Read fif filename and convert in raw object
-		CovertAtt_Merg = CovertAttention()
-		
-		
-		DictEvent = {'StdStim1/AttStim1' : 1 , 'DevStim1/AttStim1'  : 2 ,
-			         'StdStim2/AttStim1' : 3 , 'DevStim2/AttStim1' : 4 , 
-					 'StdStim1/AttStim2'  : 11, 'DevStim1/AttStim2'  : 12,
-					 'StdStim2/AttStim2' : 13, 'DevStim2/AttStim2' : 14,
-					 'Instruct/AttStim1' : 9 , 'Instruct/AttStim2' : 10 }
-		
+# 		FifFileName_Horiz  = glob.glob(paths[i_suj] + '/*_VisAtt_Horiz.raw.fif')[0]
+# 		FifFileName_Verti  = glob.glob(paths[i_suj] + '/*_VisAtt_Verti.raw.fif')[0]
+# 			
+# 		# Read fif filename and convert in raw object
+# 		CovertAtt_Merg = CovertAttention()
+# 		
+# 		
+# 		DictEvent = {'StdStim1/AttStim1' : 1 , 'DevStim1/AttStim1'  : 2 ,
+# 			         'StdStim2/AttStim1' : 3 , 'DevStim2/AttStim1' : 4 , 
+# 					 'StdStim1/AttStim2'  : 11, 'DevStim1/AttStim2'  : 12,
+# 					 'StdStim2/AttStim2' : 13, 'DevStim2/AttStim2' : 14,
+# 					 'Instruct/AttStim1' : 9 , 'Instruct/AttStim2' : 10 }
+# 		
 
-		
-		mne_rawVertiCovAtt = CovertAtt_Merg.ReadFileandConvertEvent(FifFileName_Verti, DictEvent)
-		mne_rawHorizCovAtt = CovertAtt_Merg.ReadFileandConvertEvent(FifFileName_Horiz, DictEvent)
-		
-		Events_Verti, Events_dict_Verti = mne.events_from_annotations(mne_rawVertiCovAtt,verbose='ERROR')
-		Events_Horiz, Events_dict_Horiz = mne.events_from_annotations(mne_rawHorizCovAtt,verbose='ERROR')
+# 		
+# 		mne_rawVertiCovAtt = CovertAtt_Merg.ReadFileandConvertEvent(FifFileName_Verti, DictEvent)
+# 		mne_rawHorizCovAtt = CovertAtt_Merg.ReadFileandConvertEvent(FifFileName_Horiz, DictEvent)
+# 		
+# 		Events_Verti, Events_dict_Verti = mne.events_from_annotations(mne_rawVertiCovAtt,verbose='ERROR')
+# 		Events_Horiz, Events_dict_Horiz = mne.events_from_annotations(mne_rawHorizCovAtt,verbose='ERROR')
 
-		mne_rawMergeCovAtt = concatenate_raws([mne_rawHorizCovAtt,mne_rawVertiCovAtt])
+# 		mne_rawMergeCovAtt = concatenate_raws([mne_rawHorizCovAtt,mne_rawVertiCovAtt])
+# 		
+# 		
+# 		
+# 		
+# 		
+# 		Events_Merge, Events_dict_Merge = mne.events_from_annotations(mne_rawMergeCovAtt,verbose='ERROR')
+# 		
+# 		
+# 		figStd,EpochStd = CovertAtt_Merg.CompareStimUnderCond(mne_rawMergeCovAtt,'Std',[1,1],'Standards')
+# 		figDev,EpochDev = CovertAtt_Merg.CompareStimUnderCond(mne_rawMergeCovAtt,'Dev',[2.5,2.5],'Deviants')
+# 		fig_CompareCond_IC_Std_Merge = CovertAtt_Merg.CompareCondFromIcaCompo(mne_rawMergeCovAtt,Events_Merge,['eeg'],-0.1,1.0,0.15,'Std',[1,1],'Standards Merge',2000,0.15)
+# 		fig_CompareCond_IC_Dev_Merge = CovertAtt_Merg.CompareCondFromIcaCompo(mne_rawMergeCovAtt,Events_Merge,['eeg'],-0.1,1.0,0.15,'Dev',[2.5,2.5],'Deviants Merge',2000,0.15)
+# 		
 		
-		Events_Merge, Events_dict_Merge = mne.events_from_annotations(mne_rawMergeCovAtt,verbose='ERROR')
+# 		
+# 		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['EOGLef','EOGRig'],'Horiz',-0.1,0.6,[1,1],'Std',0.00)	
+# 		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['EOGLef','EOGRig'],'Horiz',-0.1,0.6,[2.5,2.5],'Dev',0.00)	
+# 		
+# 		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['Fp1','Fp2'],'Verti',-0.1,0.6,[1,1],'Std',0.00)	
+# 		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['Fp1','Fp2'],'Verti',-0.1,0.6,[2.5,2.5],'Dev',0.00)			
 		
-		
-		figStd,EpochStd = CovertAtt_Merg.CompareStimUnderCond(mne_rawMergeCovAtt,'Std',[1,1],'Standards')
-		figDev,EpochDev = CovertAtt_Merg.CompareStimUnderCond(mne_rawMergeCovAtt,'Dev',[2.5,2.5],'Deviants')
-		
-		Behav_Acc_Merge,TabNbStimPerBlock_Merge,figFeatures_Merge,Features_Merge,nb_spatial_filters,NbPtsEpoch= CovertAtt_Merg.ComputeFeatures(mne_rawMergeCovAtt)
-		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Stim1,accuracy_Stim2 = CovertAtt_Merg.ClassicCrossValidation(Features_Merge,nb_spatial_filters,NbPtsEpoch)
-		print("   *********** Classic X-Validation ")
-		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
-		print("   ***********   ")
-		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
-		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
-		print("     Accuracy Stim 1 Only   :  " ,  "{:.2f}".format(accuracy_Stim1))
-		print("     Accuracy Stim 2 Only  :  " , "{:.2f}".format(accuracy_Stim2))	
-			
-		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Stim1,accuracy_Stim2 = CovertAtt_Merg.ComputeAccuracy(mne_rawMergeCovAtt,TabNbStimPerBlock_Merge)
-		print("   *********** X-Validation with retrained Xdawn ")
-		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
-		print("   ***********   ")
-		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
-		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
-		print("     Accuracy Stim Up Only   :  " ,  "{:.2f}".format(accuracy_Stim1))
-		print("     Accuracy Stim BottomOnly  :  " , "{:.2f}".format(accuracy_Stim2))
+# 		Behav_Acc_Merge,TabNbStimPerBlock_Merge,figFeatures_Merge,Features_Merge,nb_spatial_filters,NbPtsEpoch= CovertAtt_Merg.ComputeFeatures(mne_rawMergeCovAtt)
+# 		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Stim1,accuracy_Stim2 = CovertAtt_Merg.ClassicCrossValidation(Features_Merge,nb_spatial_filters,NbPtsEpoch)
+# 		print("   *********** Classic X-Validation ")
+# 		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+# 		print("   ***********   ")
+# 		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+# 		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+# 		print("     Accuracy Stim 1 Only   :  " ,  "{:.2f}".format(accuracy_Stim1))
+# 		print("     Accuracy Stim 2 Only  :  " , "{:.2f}".format(accuracy_Stim2))	
+# 			
+# 		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Stim1,accuracy_Stim2 = CovertAtt_Merg.ComputeAccuracy(mne_rawMergeCovAtt,TabNbStimPerBlock_Merge)
+# 		print("   *********** X-Validation with retrained Xdawn ")
+# 		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+# 		print("   ***********   ")
+# 		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+# 		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+# 		print("     Accuracy Stim Up Only   :  " ,  "{:.2f}".format(accuracy_Stim1))
+# 		print("     Accuracy Stim BottomOnly  :  " , "{:.2f}".format(accuracy_Stim2))
 
-		
-		
-		
-		
-		
-		
-		
-		
-		
-		
+
 		
 		
 		
