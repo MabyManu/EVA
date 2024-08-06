@@ -409,4 +409,6 @@ if __name__ == "__main__":
 		# Plot EOG for each epoch
 		DictData_EOG = DictData_EOGHoriz
 		DictData_EOG.update(DictData_EOGVerti)
-		raw_Step.Plot_EOG(DictData_EOG,raw_Step.Times,raw_Step.TargetFixationDuration)
+		_,_,DictLatencyInit_EOGmean = raw_Step.Plot_EOG(DictData_EOG,raw_Step.Times,raw_Step.TargetFixationDuration)
+		DictLatencyInit_EOGmean ={"Latency_InitSacc_EOG":DictLatencyInit_EOGmean}
+		py_tools.append_to_json_file(SaveDataFilename, DictLatencyInit_EOGmean)

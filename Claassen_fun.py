@@ -8,6 +8,8 @@ Created on Tue Mar  5 13:02:05 2024
 import os 
 import warnings
 import glob
+
+import json
 RootAnalysisFolder = os.getcwd()
 from os import chdir
 chdir(RootAnalysisFolder)
@@ -759,3 +761,12 @@ if __name__ == "__main__":
 # 		fig_ERDS = raw_Claassen.ERDS_Analysis(rejection_rate=rejection_rate)
 # 		figHR_Mvt = raw_Claassen.HeartRate_analysis()
 # 		figPupil = raw_Claassen.PupilDiam_analysis()
+
+
+	if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
+		os.mkdir(RootDirectory_Results + SUBJECT_NAME)
+	SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_Claassen.json"
+	Results = {"Mean_AUC" : AUC_data['AUC_mean'], "p_value" : AUC_data['p_value']}
+	
+	with open(SaveDataFilename, "w") as outfile: 
+		   json.dump(Results, outfile)

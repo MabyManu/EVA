@@ -8,6 +8,7 @@ Created on Mon Mar 11 11:38:11 2024
 import os 
 import warnings
 import glob
+import json
 RootAnalysisFolder = os.getcwd()
 from os import chdir
 chdir(RootAnalysisFolder)
@@ -821,3 +822,12 @@ if __name__ == "__main__":
 
 		fig_HR = raw_ActPass.HeartRate_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
 		fig_Pupill = raw_ActPass.PupilDiam_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
+		
+		
+		if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
+			os.mkdir(RootDirectory_Results + SUBJECT_NAME)
+		SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_ActPass.json"
+		Results = {"CountEffect" :CountEffect_OK, "FocDivEffect" : FocDivEffect_OK}
+
+		with open(SaveDataFilename, "w") as outfile: 
+			   json.dump(Results, outfile)

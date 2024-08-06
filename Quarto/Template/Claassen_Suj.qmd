@@ -13,6 +13,8 @@ import os
 import glob
 RootAnalysisFolder = os.path.split(os.path.split(os.getcwd())[0])[0]
 
+import json
+
 import mne
 import matplotlib.pyplot as plt
 plt.rcParams['figure.figsize']=(15,8)
@@ -88,4 +90,18 @@ figHR_Mvt = raw_Claassen.HeartRate_analysis()
 ## Analysis of Pupil Diameter variation during the 'Move' and 'Rest' Conditions
 ```{python}
 figPupil = raw_Claassen.PupilDiam_analysis()
+```
+
+
+
+# Save results computed from gaze data in a *json file
+```{python}
+if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
+	os.mkdir(RootDirectory_Results + SUBJECT_NAME)
+SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_Claassen.json"
+Results = {"Mean_AUC" : AUC_data['AUC_mean'], "p_value" : AUC_data['p_value']}
+
+with open(SaveDataFilename, "w") as outfile: 
+	   json.dump(Results, outfile)
+	   
 ```
