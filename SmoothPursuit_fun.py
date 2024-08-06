@@ -21,7 +21,7 @@ from scipy import interpolate
 
 import pandas as pd
 import seaborn
-
+from scipy.signal import detrend
 
 from AddPyABA_Path import PyABA_path
 import sys
@@ -379,22 +379,48 @@ class SmoothPursuit:
 			raw_Horiz_block02.crop(self.SecondBlock_Traject_times[0]/raw.info['sfreq'],self.SecondBlock_Traject_times[-1]/raw_filt_EOG_Horiz.info['sfreq'])
 			
 			block01_Horiz_data = (raw_Horiz_block01._data[1,:]-raw_Horiz_block01._data[0,:])*1e6
+			block01_Horiz_data = detrend(block01_Horiz_data)
+			block01_Horiz_data = block01_Horiz_data/np.max(np.abs(block01_Horiz_data))
+			
+			FirstBlock_Traject_pos = np.hstack(([0],[1,-1]*int((len(self.FirstBlock_Traject_times)-1)/2)))
+			f = interpolate.interp1d(self.FirstBlock_Traject_times,FirstBlock_Traject_pos)
+			NewTimes = np.array(range(self.FirstBlock_Traject_times[0],self.FirstBlock_Traject_times[-1]+1))
+			FirstBlock_Traject_pos_resamp = f(NewTimes)
+			
 			block02_Horiz_data = (raw_Horiz_block02._data[1,:]-raw_Horiz_block02._data[0,:])*1e6
+			block02_Horiz_data = detrend(block02_Horiz_data)
+			block02_Horiz_data = block02_Horiz_data/np.max(np.abs(block02_Horiz_data))
+			
+			SecondBlock_Traject_pos = np.hstack(([1,-1]*int((len(self.SecondBlock_Traject_times)-1)/2),[0]))
+			f = interpolate.interp1d(self.SecondBlock_Traject_times,SecondBlock_Traject_pos)
+			NewTimes = np.array(range(self.SecondBlock_Traject_times[0],self.SecondBlock_Traject_times[-1]+1))
+			SecondBlock_Traject_pos_resamp = f(NewTimes)
 			
 			ax2.plot(raw_filt_EOG_Horiz.times[int(self.FirstBlock_Traject_times[0]):int(self.FirstBlock_Traject_times[-1]+1)],block01_Horiz_data,'k')
 			ax2.plot(raw_filt_EOG_Horiz.times[int(self.SecondBlock_Traject_times[0]):int(self.SecondBlock_Traject_times[-1]+1)],block02_Horiz_data,'k')
-			ampmax=np.max([np.max(block01_Horiz_data),np.max(block02_Horiz_data)])
-			ampmin=np.min([np.min(block01_Horiz_data),np.min(block02_Horiz_data)])
-			ax2.vlines(self.FirstBlock_Traject_times/raw_filt_EOG_Horiz.info['sfreq'],ampmin,ampmax,'m',linestyle ='dotted')
-			ax2.vlines(self.SecondBlock_Traject_times/raw_filt_EOG_Horiz.info['sfreq'],ampmin,ampmax,'m',linestyle ='dotted')
+
+			ax2.plot(raw_filt_EOG_Horiz.times[int(self.FirstBlock_Traject_times[0]):int(self.FirstBlock_Traject_times[-1]+1)],FirstBlock_Traject_pos_resamp,'r',linestyle ='dotted')
+			ax2.plot(raw_filt_EOG_Horiz.times[int(self.SecondBlock_Traject_times[0]):int(self.SecondBlock_Traject_times[-1]+1)],SecondBlock_Traject_pos_resamp,'r',linestyle ='dotted')
+
+			
+# 			ampmax=np.max([np.max(block01_Horiz_data),np.max(block02_Horiz_data)])
+# 			ampmin=np.min([np.min(block01_Horiz_data),np.min(block02_Horiz_data)])
+# 			ax2.vlines(self.FirstBlock_Traject_times/raw_filt_EOG_Horiz.info['sfreq'],-1,1,'m',linestyle ='dotted')
+# 			ax2.vlines(self.SecondBlock_Traject_times/raw_filt_EOG_Horiz.info['sfreq'],-1,1,'m',linestyle ='dotted')
 			ax2.set_title('Horizontal EOG')
 			ax2.set_xlabel('Times (s)')
 			ax2.set_ylabel('Amplitude (µV)')
+			
+			# Root Mean Square Error
+			MSE_EOG =np.nanmean(np.hstack((np.square(block01_Horiz_data-FirstBlock_Traject_pos_resamp),np.square(block02_Horiz_data-SecondBlock_Traject_pos_resamp))))
+			RMSE_EOG = np.sqrt(MSE_EOG)
+			
+			
 		
 			NbBlinks = len(eog_events_block01) + len(eog_events_block02)
 			
 			
-		return NbBlinks
+		return NbBlinks,RMSE_EOG
 		
 		
 	def SaveResults(self,Results,SaveDataFilename):
@@ -413,7 +439,7 @@ class SmoothPursuit:
 		GainVelocity =  pd.Series({'Left_Eye': Results['GainVelocity_Left'],
 		             'Right_Eye': Results['GainVelocity_Right']})
 		
-		SmoothPursuit_Data = pd.DataFrame({'RMSE': RMSE,'NbSaccPerCycle': NbSacc,'NbBlinksPerCycle': Results['NbBlinksPerCycle'],'MeanAmpSacc':MeanAmpSacc , 'MeanVelocity':MeanVelocity, 'GainVelocity':GainVelocity})
+		SmoothPursuit_Data = pd.DataFrame({'RMSE': RMSE,'NbSaccPerCycle': NbSacc,'MeanAmpSacc':MeanAmpSacc , 'MeanVelocity':MeanVelocity, 'GainVelocity':GainVelocity})
 		
 		SmoothPursuit_Data.to_json(SaveDataFilename)
 		
@@ -445,12 +471,14 @@ if __name__ == "__main__":
 		Velocity_Left,Velocity_Right = raw_SmoothPurs.ComputeVelocity_andPlot(GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times,EsacLeft,EsacRight)
 		Results = raw_SmoothPurs.ComputeParameters(Target_Traject,GazeLE_X,GazeRE_X,EsacLeft,EsacRight,AmpSaccLeft,AmpSaccRight,Velocity_Left,Velocity_Right)
 		
-		NbBlinks = raw_SmoothPurs.EOGAnalysis(raw_SmoothPurs.mne_raw)
-		NbBlinksPerCycle = NbBlinks/raw_SmoothPurs.NbCycles
-		Results.update({'NbBlinksPerCycle':NbBlinksPerCycle})
+		NbBlinks,RMSE_EOG = raw_SmoothPurs.EOGAnalysis(raw_SmoothPurs.mne_raw)
+		NbBlinksPerCycle_EOG = NbBlinks/raw_SmoothPurs.NbCycles
+		Results.update({'NbBlinksPerCycle_EOG':NbBlinksPerCycle_EOG})
+		Results.update({'RMSE_EOG':RMSE_EOG})
 		
 		
 		SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_SmoothPursuit.json"
 		raw_SmoothPurs.SaveResults(Results,SaveDataFilename)
-		SaveDataFilename = RootDirectory_Results + "SmoothPursuit/" + SUBJECT_NAME + "_SmoothPursuit.json"
-		raw_SmoothPurs.SaveResults(Results,SaveDataFilename)
+		py_tools.append_to_json_file(SaveDataFilename, {'NbBlinksPerCycle_EOG': Results['NbBlinksPerCycle_EOG'],'RMSE_EOG':Results['RMSE_EOG']})
+
+		

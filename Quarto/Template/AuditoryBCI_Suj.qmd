@@ -11,6 +11,8 @@ jupyter: python3
 ```{python}
 import os 
 import glob
+import json
+
 RootAnalysisFolder = os.path.split(os.path.split(os.getcwd())[0])[0]
 
 import mne
@@ -19,6 +21,12 @@ plt.rcParams['figure.figsize']=(15,8)
 plt.rcParams["figure.dpi"] = 300.
 import sys
 sys.path.append(RootAnalysisFolder)
+
+
+from AddPyABA_Path import PyABA_path
+sys.path.append(PyABA_path)
+import gaze_tools,py_tools
+
 from AuditoryBCI_fun import AudBCI
 ```
 
@@ -82,6 +90,7 @@ print("Behavioral accuracy :" + str(Behav_Acc * 100) + ' %')
 ## Compute Leave-One-Out Cross-Validation with a single training of Xdawn filters
 ```{python}
 accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_No,accuracy_Yes = raw_AudBCI.ClassicCrossValidation(TabNbStimPerBlock)
+XValid_Acc_1TrainXdawn = {"All":accuracy_stds_devs,"Std":accuracy_stds,"Dev":accuracy_devs,"No":accuracy_No,"Yes":accuracy_Yes}
 
 print("   *********** Classic X-Validation ")
 print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
@@ -95,6 +104,8 @@ print("     Accuracy Yes Stim Only  :  " , "{:.2f}".format(accuracy_Yes))
 ## Compute Leave-One-Out Cross-Validation with a training of Xdawn filters for each training dataset
 ```{python}
 accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_No,accuracy_Yes = raw_AudBCI.ComputeAccuracy(TabNbStimPerBlock)
+XValid_Acc_ReTrainXdawn = {"All":accuracy_stds_devs,"Std":accuracy_stds,"Dev":accuracy_devs,"No":accuracy_No,"Yes":accuracy_Yes}
+
 print("   *********** X-Validation with retrained Xdawn ")
 print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
 print("   ***********   ")
@@ -103,3 +114,26 @@ print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
 print("     Accuracy No Stim Only   :  " ,  "{:.2f}".format(accuracy_No))
 print("     Accuracy Yes Stim Only  :  " , "{:.2f}".format(accuracy_Yes))
 ```
+
+
+# Compute the synchronization between the respiration and the auditive stimuli
+```{python}
+Events, Events_dict = mne.events_from_annotations(raw_AudBCI.mne_raw,verbose='ERROR')
+raw_AudBCI.RespirationSynchrony(raw_AudBCI.mne_raw,'Resp',[Events_dict['DevNo/AttNo'],Events_dict['DevYes/AttYes'],Events_dict['DevNo/AttYes'],Events_dict['DevYes/AttNo'],Events_dict['StdNo/AttNo'],Events_dict['StdYes/AttYes'],Events_dict['StdNo/AttYes'],Events_dict['StdYes/AttNo']])
+
+
+```
+
+# Save results computed from gaze data in a *json file
+```{python}
+if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
+	os.mkdir(RootDirectory_Results + SUBJECT_NAME)
+SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_AuditoryBCI.json"
+Results = {"P300Effect" : P300Effect_OK}
+
+with open(SaveDataFilename, "w") as outfile: 
+	   json.dump(Results, outfile)
+	   
+py_tools.append_to_json_file(SaveDataFilename, {'CrossVal_1TrainXdawn':XValid_Acc_1TrainXdawn,'CrossVal_ReTrainXdawn':XValid_Acc_ReTrainXdawn})	 
+```
+

@@ -11,6 +11,8 @@ jupyter: python3
 ```{python}
 import os 
 import glob
+import json
+
 RootAnalysisFolder = os.path.split(os.path.split(os.getcwd())[0])[0]
 from termcolor import colored
 import mne
@@ -135,4 +137,14 @@ fig_HR = raw_ActPass.HeartRate_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/D
 fig_Pupill = raw_ActPass.PupilDiam_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
 ```
 
+# Save results computed from gaze data in a *json file
+```{python}
+if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
+	os.mkdir(RootDirectory_Results + SUBJECT_NAME)
+SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_ActPass.json"
+Results = {"CountEffect" :CountEffect_OK, "FocDivEffect" : FocDivEffect_OK}
 
+with open(SaveDataFilename, "w") as outfile: 
+	   json.dump(Results, outfile)
+	   
+```

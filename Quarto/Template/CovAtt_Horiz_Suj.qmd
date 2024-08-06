@@ -11,7 +11,9 @@ jupyter: python3
 ```{python}
 import os 
 import glob
+import json
 RootAnalysisFolder = os.path.split(os.path.split(os.getcwd())[0])[0]
+import pandas as pd
 
 import mne
 import numpy as np
@@ -20,6 +22,12 @@ plt.rcParams['figure.figsize']=(15,8)
 plt.rcParams["figure.dpi"] = 300.
 import sys
 sys.path.append(RootAnalysisFolder)
+
+
+from AddPyABA_Path import PyABA_path
+sys.path.append(PyABA_path)
+import gaze_tools,py_tools
+
 from CovertAttention_fun import CovertAttention
 ```
 
@@ -133,6 +141,15 @@ else:
 ```
 
 
+### Compute the P300 Effect: compare Dev ERPs at Cz & Pz under Attended and Ignored condition
+```{python}
+if FlagProcessAnalysis :
+		figDevAttVsIgn,P300Effect_OK = CovertAtt_Horiz.Compare_Stim_2Cond_ROI(EpochDev, ["crimson","steelblue"],[2.5,2.5],[0.25,0.8], ['Cz','Pz'],0.05)
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+
 ## Behavior & Features
 ```{python}
 
@@ -149,6 +166,7 @@ else:
 ```{python}
 if FlagProcessAnalysis :
 	accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Left,accuracy_Right = CovertAtt_Horiz.ClassicCrossValidation(Features_Horiz,nb_spatial_filters,NbPtsEpoch)
+	XValid_Acc_1TrainXdawn = {"All":accuracy_stds_devs,"Std":accuracy_stds,"Dev":accuracy_devs,"Left":accuracy_Left,"Right":accuracy_Right}
 	print("   *********** Classic X-Validation ")
 	print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
 	print("   ***********   ")
@@ -163,6 +181,7 @@ else:
 ```{python}
 if FlagProcessAnalysis :
 	accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Left,accuracy_Right = CovertAtt_Horiz.ComputeAccuracy(mne_rawHorizCovAtt,TabNbStimPerBlock_Horiz)
+	XValid_Acc_ReTrainXdawn = {"All":accuracy_stds_devs,"Std":accuracy_stds,"Dev":accuracy_devs,"Left":accuracy_Left,"Right":accuracy_Right}
 	print("   *********** X-Validation with retrained Xdawn ")
 	print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
 	print("   ***********   ")
@@ -170,6 +189,7 @@ if FlagProcessAnalysis :
 	print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
 	print("     Accuracy Stim Left Only   :  " ,  "{:.2f}".format(accuracy_Left))
 	print("     Accuracy Stim RightOnly  :  " , "{:.2f}".format(accuracy_Right))
+
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -281,7 +301,7 @@ else:
 ## Spectral analysis of gaze position for each trial
 ```{python}
 if FlagProcessAnalysis :
-	CovertAtt_Horiz.GazeSpectralAnalysis(mne_rawHorizCovAtt,['Gaze_LEye_X','Gaze_LEye_Y','Gaze_REye_X','Gaze_REye_Y'],0.25,15,0.1)
+	figSpectGaze,Results_SpectGaze = CovertAtt_Horiz.GazeSpectralAnalysis(mne_rawHorizCovAtt,['Gaze_LEye_X','Gaze_LEye_Y','Gaze_REye_X','Gaze_REye_Y'],0.25,15,0.1)
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -300,7 +320,21 @@ else:
 ```
 
 
+```{python}
+if FlagProcessAnalysis :
+	# Save results computed from gaze data in a *json file
+	if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
+		os.mkdir(RootDirectory_Results + SUBJECT_NAME)
+	SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_Cov_Att_Horiz.json"
+	Results = {"PercentFix_LeftEye" : Mean_LE_XFix,"PercentFix_RightEye" : Mean_RE_XFix,"NumberOfSaccades_LeftEye" : Mean_LE_Sacc,"NumberOfSaccades_RightEye" : Mean_RE_Sacc,"P300Effect":P300Effect_OK}
 
+	with open(SaveDataFilename, "w") as outfile: 
+		   json.dump(Results, outfile)
+		   
+	py_tools.append_to_json_file(SaveDataFilename, {'CrossVal_1TrainXdawn':XValid_Acc_1TrainXdawn,'CrossVal_ReTrainXdawn':XValid_Acc_ReTrainXdawn})	 
+	py_tools.append_to_json_file(SaveDataFilename,  Results_SpectGaze)
+
+```
 
 
 

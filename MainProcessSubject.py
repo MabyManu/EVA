@@ -129,7 +129,10 @@ for i_suj in range(NbSuj): # Loop on list of folders name
 	NewFile = RootDirectory_Quarto + SUBJECT_NAME + "/" + "Iannetti_" + SUBJECT_NAME + ".qmd"
 	py_tools.RemplaceContentAndCopy(OrigFile, NewFile,"***SUJ***", SUBJECT_NAME)	
 	
-	
+	# Resting State Blink Session
+	OrigFile=RootDirectory_Quarto + "/Template/Rest_Suj.qmd"
+	NewFile = RootDirectory_Quarto + SUBJECT_NAME + "/" + "Rest_" + SUBJECT_NAME + ".qmd"
+	py_tools.RemplaceContentAndCopy(OrigFile, NewFile,"***SUJ***", SUBJECT_NAME)		
 	
 	
  	# Index file
@@ -173,7 +176,9 @@ for i_suj in range(NbSuj): # Loop on list of folders name
 		
 	if (SESSION_NAME == 'ClapBlink'):
 		os.system("quarto render " +  SUBJECT_NAME + "/" + "ClapBlink_" + SUBJECT_NAME + ".qmd")		
-					
+
+	if (SESSION_NAME == 'Rest'):
+		os.system("quarto render " +  SUBJECT_NAME + "/" + "Rest_" + SUBJECT_NAME + ".qmd")						
 							
 	os.chdir(RootAnalysisFolder)
 

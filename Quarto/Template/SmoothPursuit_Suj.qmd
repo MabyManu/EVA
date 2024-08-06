@@ -21,6 +21,10 @@ plt.rcParams["figure.dpi"] = 300.
 import sys
 sys.path.append(RootAnalysisFolder)
 from SmoothPursuit_fun import SmoothPursuit
+
+from AddPyABA_Path import PyABA_path
+sys.path.append(PyABA_path)
+import gaze_tools,py_tools
 ```
 
 
@@ -82,9 +86,10 @@ else:
 ## Analysis of EOG signal
 ```{python}
 if FlagProcessAnalysis :
-	NbBlinks = raw_SmoothPurs.EOGAnalysis(raw_SmoothPurs.mne_raw)
-	NbBlinksPerCycle = NbBlinks/raw_SmoothPurs.NbCycles
-	Results.update({'NbBlinksPerCycle':NbBlinksPerCycle})
+	NbBlinks,RMSE_EOG = raw_SmoothPurs.EOGAnalysis(raw_SmoothPurs.mne_raw)
+	NbBlinksPerCycle_EOG = NbBlinks/raw_SmoothPurs.NbCycles
+	Results.update({'NbBlinksPerCycle_EOG':NbBlinksPerCycle_EOG})
+	Results.update({'RMSE_EOG':RMSE_EOG})
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -142,7 +147,16 @@ else:
 ### Number of blinks per cycle 
 ```{python}
 if FlagProcessAnalysis :
-	print(Results['NbBlinksPerCycle'] , " blinks/cycle")
+	print(Results['NbBlinksPerCycle_EOG'] , " blinks/cycle")
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+
+### RMSE on EOG data
+```{python}
+if FlagProcessAnalysis :
+	print("RMSE : " , Results['RMSE_EOG'])
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -150,10 +164,12 @@ else:
 ```{python}
 if FlagProcessAnalysis :
 	# Save results computed from gaze data in a *json file
+	if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
+		os.mkdir(RootDirectory_Results + SUBJECT_NAME)
 	SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_SmoothPursuit.json"
 	raw_SmoothPurs.SaveResults(Results,SaveDataFilename)
-	SaveDataFilename = RootDirectory_Results + "SmoothPursuit/" + SUBJECT_NAME + "_SmoothPursuit.json"
-	raw_SmoothPurs.SaveResults(Results,SaveDataFilename)
+	py_tools.append_to_json_file(SaveDataFilename, {'NbBlinksPerCycle_EOG': Results['NbBlinksPerCycle_EOG'],'RMSE_EOG':Results['RMSE_EOG']})
+
 ```
 
 		

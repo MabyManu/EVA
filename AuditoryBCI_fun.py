@@ -20,13 +20,100 @@ import pandas as pd
 
 from AddPyABA_Path import PyABA_path
 import sys
- 
+import neurokit2 as nk
 sys.path.append(PyABA_path)
 
 import pyABA_algorithms,mne_tools,py_tools,gaze_tools
 from mne.channels import combine_channels
 
+from scipy.signal import find_peaks
 from mne.stats import permutation_cluster_test,f_threshold_mway_rm
+
+def identify_respiration_cycles(resp_signal, fs, height_threshold=0.2, distance_threshold=0.5):
+    """
+    Identifie les cycles respiratoires dans un signal de respiration.
+
+    Args:
+        resp_signal (array): Signal de respiration.
+        fs (int): Fréquence d'échantillonnage du signal.
+        height_threshold (float): Seuil minimum pour détecter les pics et creux.
+        distance_threshold (float): Distance minimale (en secondes) entre les pics pour détecter des cycles distincts.
+
+    Returns:
+        peaks (array): Index des pics du signal.
+        troughs (array): Index des creux du signal.
+        cycles (array): Intervalles (en échantillons) entre les pics et creux successifs.
+    """
+
+    # Convertir la distance minimale en nombre d'échantillons
+    distance_samples = int(distance_threshold * fs)
+    
+    # Détection des pics (inspiration maximale)
+    peaks, _ = find_peaks(resp_signal, height=height_threshold, distance=distance_samples)
+    
+    # Détection des creux (expiration maximale)
+    troughs, _ = find_peaks(-resp_signal, height=height_threshold, distance=distance_samples)
+
+    # Identification des cycles respiratoires (d'un pic à un creux successif ou vice versa)
+    cycles = []
+    if peaks.size > 0 and troughs.size > 0:
+        for i in range(min(len(peaks), len(troughs)) - 1):
+            cycles.append((peaks[i], troughs[i+1]))
+
+    return peaks, troughs, cycles
+
+
+
+def calculate_respiratory_phase(resp_signal, peaks, troughs):
+	"""
+	Calcule la phase respiratoire en termes d'angle (0° à 360°) pour chaque point du signal.
+	
+	Args:
+	resp_signal (array): Signal de respiration.
+	peaks (array): Index des pics du signal.
+	troughs (array): Index des creux du signal.
+	
+	Returns:
+	phases (array): Phases respiratoires en termes d'angle pour chaque point du signal.
+	"""
+	
+	phases = np.zeros(len(resp_signal))
+	# Identifier les points dans les cycles pour calculer les phases
+	for i in range(len(peaks) - 1):
+		start = peaks[i]
+		end = troughs[i]
+		next_start = peaks[i+1]
+
+		# Phase pour la montée (inspiration) - 0° à 180°
+		phases[start:end] = np.linspace(0, 180, end-start, endpoint=False)
+		
+		# Phase pour la descente (expiration) - 180° à 360°
+		
+		phases[end:next_start] = np.linspace(180, 360, next_start-end, endpoint=False)
+	return phases
+
+
+
+
+
+
+def plot_phases_on_circle(phases):
+	"""
+	Trace les phases respiratoires sur un cercle.
+	Args:
+		phases (array): Phases respiratoires en termes d'angle.
+    """
+	# Convertir les phases en radians pour l'affichage en coordonnées polaires
+	radians = np.deg2rad(phases)
+	# Tracer les phases sur un cercle
+	plt.figure(figsize=(6, 6))
+	ax = plt.subplot(111, polar=True)
+	ax.scatter(radians, np.ones_like(radians), s=7, color='blue')
+	ax.set_yticklabels([])  # Masquer les labels du rayon
+	ax.set_theta_zero_location("E")  # 0° en haut (au nord)
+	ax.set_theta_direction(1)  # Sens des aiguilles d'une montre 
+	plt.title('Respiration phases synchronized with stimuli')
+	plt.show()
 
 
 class AudBCI:
@@ -812,6 +899,53 @@ class AudBCI:
  		
 		return accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_No,accuracy_Yes
 		
+	def RespirationSynchrony(self,raw,ChanLabel,TabStim):
+		Raw_Respi = raw.copy()
+		Raw_Respi = Raw_Respi.pick_channels(['Resp'],verbose='ERROR')
+		Events, Events_dict = mne.events_from_annotations(Raw_Respi,verbose='ERROR')
+		code_Stim = 99
+		events_Stim=mne.event.merge_events(Events, [TabStim[0]], code_Stim, replace_events=True)
+		
+		for i_stim in range(len(TabStim)-1):
+			events_Stim=mne.event.merge_events(events_Stim, [TabStim[i_stim+1]], code_Stim, replace_events=True)
+		
+		Lat_Stim =  events_Stim[np.where(events_Stim[:,2]==99)[0],0]
+
+
+		Respi_data = Raw_Respi._data[0,:]
+
+
+		rsp_signals, info = nk.rsp_process(Respi_data, sampling_rate=Raw_Respi.info['sfreq'])
+		nk.rsp_plot(rsp_signals, info)
+
+# 		peaks = info['RSP_Peaks']
+# 		troughs = info['RSP_Troughs']
+
+		phases = calculate_respiratory_phase(Respi_data, info['RSP_Troughs'], info['RSP_Peaks'])
+
+# 		# Affichage des résultats
+# 		plt.figure(figsize=(10, 6))
+# 		plt.plot(Raw_Respi.times, Respi_data, label='Signal de respiration')
+# 		plt.plot(Raw_Respi.times[peaks], Respi_data[peaks], 'ro', label='Pics')
+# 		plt.plot(Raw_Respi.times[troughs], Respi_data[troughs], 'go', label='Creux')
+# 		plt.xlabel('Temps (s)')
+# 		plt.ylabel('Amplitude')
+# 		plt.title('Phase respiratoire en termes d\'angle')
+
+# 		# Affichage des phases sur un deuxième axe
+# 		ax2 = plt.gca().twinx()
+# 		ax2.plot(Raw_Respi.times, phases, 'k--', label='Phase (en degrés)',linewidth=0.75)
+# 		ax2.set_ylabel('Phase (degrés)')
+# 		plt.legend()
+# 		plt.show()
+
+
+
+		Phase_synch_Stim = phases[Lat_Stim]
+
+		plot_phases_on_circle(Phase_synch_Stim)
+		
+		
 		
 		
 if __name__ == "__main__":	
@@ -831,27 +965,51 @@ if __name__ == "__main__":
 		
 		# Read fif filname and convert in raw object
 		raw_AudBCI = AudBCI(FifFileName)
-		figGaze = raw_AudBCI.GazeAnalysis()
-		figStd,EpochStd = raw_AudBCI.CompareStimUnderCond('Std',[1,1],'Standards')
-		
-		figDev,EpochDev = raw_AudBCI.CompareStimUnderCond('Dev',[2.5,2.5],'Deviants')
-		figDevAttVsIgn,P300Effect_OK = raw_AudBCI.Compare_Stim_2Cond_ROI(EpochDev, ["crimson","steelblue"],[2.5,2.5],[0.25,0.8], ['Cz','Pz'],0.05)
+# 		figGaze = raw_AudBCI.GazeAnalysis()
+# 		figStd,EpochStd = raw_AudBCI.CompareStimUnderCond('Std',[1,1],'Standards')
+# 		
+# 		figDev,EpochDev = raw_AudBCI.CompareStimUnderCond('Dev',[2.5,2.5],'Deviants')
+# 		figDevAttVsIgn,P300Effect_OK = raw_AudBCI.Compare_Stim_2Cond_ROI(EpochDev, ["crimson","steelblue"],[2.5,2.5],[0.25,0.8], ['Cz','Pz'],0.05)
 
-		Behav_Acc,TabNbStimPerBlock,fig= raw_AudBCI.ComputeFeatures()
-		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_No,accuracy_Yes = raw_AudBCI.ClassicCrossValidation(TabNbStimPerBlock)
-		print("   *********** Classic X-Validation ")
-		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
-		print("   ***********   ")
-		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
-		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
-		print("     Accuracy No Stim Only   :  " ,  "{:.2f}".format(accuracy_No))
-		print("     Accuracy Yes Stim Only  :  " , "{:.2f}".format(accuracy_Yes))
+# 		Behav_Acc,TabNbStimPerBlock,fig= raw_AudBCI.ComputeFeatures()
+# 		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_No,accuracy_Yes = raw_AudBCI.ClassicCrossValidation(TabNbStimPerBlock)
+# 		print("   *********** Classic X-Validation ")
+# 		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+# 		print("   ***********   ")
+# 		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+# 		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+# 		print("     Accuracy No Stim Only   :  " ,  "{:.2f}".format(accuracy_No))
+# 		print("     Accuracy Yes Stim Only  :  " , "{:.2f}".format(accuracy_Yes))
+# 		
+# 		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_No,accuracy_Yes = raw_AudBCI.ComputeAccuracy(TabNbStimPerBlock)
+# 		print("   *********** X-Validation with retrained Xdawn ")
+# 		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+# 		print("   ***********   ")
+# 		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+# 		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+# 		print("     Accuracy No Stim Only   :  " ,  "{:.2f}".format(accuracy_No))
+# 		print("     Accuracy Yes Stim Only  :  " , "{:.2f}".format(accuracy_Yes))
 		
-		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_No,accuracy_Yes = raw_AudBCI.ComputeAccuracy(TabNbStimPerBlock)
-		print("   *********** X-Validation with retrained Xdawn ")
-		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
-		print("   ***********   ")
-		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
-		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
-		print("     Accuracy No Stim Only   :  " ,  "{:.2f}".format(accuracy_No))
-		print("     Accuracy Yes Stim Only  :  " , "{:.2f}".format(accuracy_Yes))
+		
+		
+		
+		Events, Events_dict = mne.events_from_annotations(raw_AudBCI.mne_raw,verbose='ERROR')
+
+		raw_AudBCI.RespirationSynchrony(raw_AudBCI.mne_raw,'Resp',[Events_dict['DevNo/AttNo'],Events_dict['DevYes/AttYes'],Events_dict['DevNo/AttYes'],Events_dict['DevYes/AttNo'],Events_dict['StdNo/AttNo'],Events_dict['StdYes/AttYes'],Events_dict['StdNo/AttYes'],Events_dict['StdYes/AttNo']])
+		
+		
+		
+
+
+
+
+
+
+
+
+
+
+
+
+
+

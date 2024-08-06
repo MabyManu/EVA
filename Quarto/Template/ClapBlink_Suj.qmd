@@ -53,7 +53,7 @@ else:
 		
 		
 
-## Plot the EOG signal durring clapping session
+# Plot the EOG signal durring clapping session
 ```{python}
 if FlagProcessAnalysis :
 	raw_ClapBlink.PlotBlink()

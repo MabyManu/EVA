@@ -176,8 +176,7 @@ if FlagProcessAnalysis :
 		os.mkdir(RootDirectory_Results + SUBJECT_NAME)	
 	SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_STEP.json"
 	raw_Step.SaveResults_Param(Dict_Results,TabParamName,SaveDataFilename)
-	SaveDataFilename = RootDirectory_Results + "STEP/" + SUBJECT_NAME + "_STEP.json"
-	raw_Step.SaveResults_Param(Dict_Results,TabParamName,SaveDataFilename)
+
 	
 	
 	Dict_Latency_InitSacc_LeftEye = { 	'Left'     : Results_MeanGaze['Latency_InitSacc_LeftEye'][0],
@@ -274,9 +273,6 @@ if FlagProcessAnalysis :
 	SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_STEP.json"
 	py_tools.append_to_json_file(SaveDataFilename, Dict_MeanGaze)
 	
-	SaveDataFilename = RootDirectory_Results + "STEP/" + SUBJECT_NAME + "_STEP.json"
-	py_tools.append_to_json_file(SaveDataFilename, Dict_MeanGaze)	
-	
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -293,6 +289,8 @@ if FlagProcessAnalysis :
 	DictData_EOG = DictData_EOGHoriz
 	DictData_EOG.update(DictData_EOGVerti)
 	fig_EOG, DictStartSacc_Trials, DictStartSacc_Mean = raw_Step.Plot_EOG(DictData_EOG,raw_Step.Times,raw_Step.TargetFixationDuration)
+	DictLatencyInit_EOGmean ={"Latency_InitSacc_EOG":DictStartSacc_Mean}
+	py_tools.append_to_json_file(SaveDataFilename, DictLatencyInit_EOGmean)
 else:
 	print("  ****************         NO DATA          ****************")
 	

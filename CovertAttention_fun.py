@@ -7,6 +7,7 @@ Created on Tue Jan 30 14:08:35 2024
 import warnings
 import os 
 import glob
+import json
 RootAnalysisFolder = os.getcwd()
 from os import chdir
 chdir(RootAnalysisFolder)
@@ -22,10 +23,14 @@ from PyQt5.QtWidgets import QFileDialog,QListView,QAbstractItemView,QTreeView
 import numpy as np
 from scipy import interpolate
 
+from specparam import SpectralModel
+from fooof.plts.annotate import plot_annotated_model
+from fooof import FOOOF
 import pandas as pd
 import seaborn
 from mne.stats import permutation_t_test,f_threshold_mway_rm
 
+from mne.channels import combine_channels
 
 from AddPyABA_Path import PyABA_path
 import sys
@@ -361,7 +366,73 @@ class CovertAttention:
 		return fig_stim,Epochs		
 		
 	
+	def Compare_Stim_2Cond_ROI(self,Epochs, color,linewidth,TimeWindow_P300, Chan_OI,p_accept):
 	
+		ChanSelect = mne.pick_channels(Epochs.info["ch_names"],Chan_OI)
+		LabelCond =list(Epochs.event_id.keys())
+		
+		Epoc_Cond1_ROI = combine_channels(Epochs[LabelCond[0]], dict(ROI=ChanSelect), method='mean')
+		Epoc_Cond2_ROI  = combine_channels(Epochs[LabelCond[1]], dict(ROI=ChanSelect), method='mean')
+		
+		Evo_Cond1_ROI = Epoc_Cond1_ROI.average()
+		Evo_Cond2_ROI = Epoc_Cond2_ROI.average()
+		
+		X = [ Epoc_Cond1_ROI.get_data(copy=True).transpose(0, 2, 1), Epoc_Cond2_ROI.get_data(copy=True).transpose(0, 2, 1)]
+		
+		n_conditions = 2
+		n_replications = (X[0].shape[0])  // n_conditions
+		factor_levels = [2]      #[2, 2]  # number of levels in each factor
+		effects = 'A'
+		pthresh = 0.05  # set threshold rather high to save some time
+		f_thresh = f_threshold_mway_rm(n_replications,factor_levels,effects,pthresh)
+		del n_conditions, n_replications, factor_levels, effects, pthresh
+		tail = 1  # f-test, so tail > 0
+		threshold = f_thresh
+		
+		T_obs, clusters, cluster_p_values, H0 = permutation_cluster_test([X[0], X[1]], n_permutations=20000,
+                             threshold=threshold, tail=tail, n_jobs=3,
+                             out_type='mask')
+		
+		
+		Evo_Cond1_data_ROI = Evo_Cond1_ROI.get_data()*1e6	
+		Evo_Cond2_data_ROI = Evo_Cond2_ROI.get_data()*1e6	
+		minval = np.min([np.min(Evo_Cond1_data_ROI),np.min(Evo_Cond2_data_ROI)])
+		maxval = np.max([np.max(Evo_Cond1_data_ROI),np.max(Evo_Cond2_data_ROI)])
+		
+		std_Cond1 = np.std(Epoc_Cond1_ROI.get_data(copy=True)*1e6,axis=0)
+		std_Cond2 = np.std(Epoc_Cond1_ROI.get_data(copy=True)*1e6,axis=0)
+		figStim_2CondROI = plt.figure()
+		plt.plot(Epochs.times, np.squeeze(Evo_Cond1_data_ROI),"crimson")
+		plt.plot(Epochs.times, np.squeeze(Evo_Cond2_data_ROI),"steelblue")
+		plt.legend(LabelCond)
+		plt.fill_between(Epochs.times, np.squeeze(Evo_Cond1_data_ROI-std_Cond1),np.squeeze(Evo_Cond1_data_ROI+std_Cond1),alpha=0.15,color="crimson")			
+		plt.fill_between(Epochs.times, np.squeeze(Evo_Cond2_data_ROI-std_Cond2),np.squeeze(Evo_Cond2_data_ROI+std_Cond2),alpha=0.15,color="steelblue")
+		plt.axvline(0,minval,maxval,linestyle='dotted',color = 'k',linewidth=1.5)
+		plt.axhline(0,Epochs.times[0],Epochs.times[-1],linestyle='dotted',color = 'k',linewidth=1.5)
+		plt.xlabel('Times (s)')
+		plt.ylabel('Amplitude (µV)')
+		plt.title('Mean(' +str( Chan_OI) + ')')
+		plt.xlim((Epochs.times[0],Epochs.times[-1]))
+		plt.gca().invert_yaxis()
+		
+		
+		ixstartP300TimeWin = np.where(Epochs.times==TimeWindow_P300[0])[0][0]
+		ixstopP300TimeWin = np.where(Epochs.times==TimeWindow_P300[1])[0][0]
+		
+		P300_Present_Win = np.zeros(len(Epochs.times),dtype=bool)
+		P300_Present_Win[ixstartP300TimeWin:ixstopP300TimeWin] = True
+		ClustP300_OK = 0
+		for i_cluster in range(len(cluster_p_values)):
+			if (cluster_p_values[i_cluster]<p_accept):
+				Clust_curr_start = np.where(clusters[i_cluster])[0][0]
+				Clust_curr_stop = np.where(clusters[i_cluster])[0][-1]
+				figStim_2CondROI.get_axes()[0].axvspan(Epochs.times[Clust_curr_start], Epochs.times[Clust_curr_stop],facecolor="m",alpha=0.15)	
+				
+				ClustP300_OK = ClustP300_OK + (len(np.where(np.transpose(clusters[i_cluster]) & P300_Present_Win)[0]) > 50)			
+		
+		P300Effect_OK = 1 if (ClustP300_OK>0) else 0
+		
+		return figStim_2CondROI,P300Effect_OK	
 	
 	
 		
@@ -1498,26 +1569,39 @@ class CovertAttention:
 				
 		
 		
-		plt.figure()
 		NbCol = np.int64(np.ceil(np.sqrt(NbChan)))
 		NbRow = np.int64(np.ceil(NbChan/NbCol))
-		
+# 		fm = SpectralModel(min_peak_height=0.25,max_n_peaks=1)
+		fm = FOOOF(min_peak_height=0.25,max_n_peaks=1)
+		freq_range = [0.1, 15]
+		figSpectGaze = plt.figure()
+		Results = dict()
+
 		for i_chan in range(NbChan):
 			ax = plt.subplot(NbRow, NbCol, i_chan + 1) 
-			ax.plot(Freqs_Band,np.nanmean(Spectre_Gaze[:,i_chan,:],axis=0),linewidth=1.5,color='b')
+			fm.fit(Freqs_Band, np.nanmean(Spectre_Gaze[:,i_chan,:],axis=0), freq_range)
+			plot_annotated_model(fm, annotate_peaks=True, annotate_aperiodic=True, plt_log=False,ax=ax)
+# 			fm.report(Freqs_Band, np.nanmean(Spectre_Gaze[:,i_chan,:],axis=0), freq_range,ax=ax)
 			ax.set_title(ListChan[i_chan],fontsize = 9)
 			ax.set_xlabel('Frequency (Hz)',fontsize=7)            
 			ax.set_ylabel('Amplitude ',fontsize=7)
 			ax.xaxis.set_tick_params(labelsize=8)
 			ax.yaxis.set_tick_params(labelsize=8)
 			
+			Results['ExponentCoeff_' + ListChan[i_chan]]=fm.aperiodic_params_[1]
+			if len(fm.peak_params_)>0:
+				Results['PeaksFreq'+ ListChan[i_chan]] = fm.peak_params_[0][0]
+				Results['PeaksPow'+ ListChan[i_chan]] = fm.peak_params_[0][1]
+				Results['PeaksBandWidth'+ ListChan[i_chan]] = fm.peak_params_[0][2]
+			
 		plt.gcf().suptitle("Spectra of Eye Movements")		
 
+		return figSpectGaze,Results
 
 
 
-		
-		
+
+
 if __name__ == "__main__":	
 	RootFolder =  os.path.split(RootAnalysisFolder)[0]
 	RootDirectory_RAW = RootFolder + '/_data/FIF/'
@@ -1555,11 +1639,15 @@ if __name__ == "__main__":
 		fig_Reye,Perct_FixCross_Reye = CovertAtt_Horiz.PlotGazeFixation(Gaze_REye_X,Gaze_REye_Y,AttSide)
 		fig_Reye.suptitle('Horizontal -  Right Eye Gaze Fixation')
 		
-		CovertAtt_Horiz.PlotSaccade(Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,mne_rawHorizCovAtt.info['sfreq'],AttSide,'Hori')
+		NbSaccades_LEye,NbSaccades_REye = CovertAtt_Horiz.PlotSaccade(Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,mne_rawHorizCovAtt.info['sfreq'],AttSide,'Hori')
 		
 		
 		figStd,EpochStd = CovertAtt_Horiz.CompareStimUnderCond(mne_rawHorizCovAtt,'Std',[1,1],'Standards',None)
 		figDev,EpochDev = CovertAtt_Horiz.CompareStimUnderCond(mne_rawHorizCovAtt,'Dev',[2.5,2.5],'Deviants',None)
+		
+		figDevAttVsIgn,P300Effect_OK = CovertAtt_Horiz.Compare_Stim_2Cond_ROI(EpochDev, ["crimson","steelblue"],[2.5,2.5],[0.25,0.8], ['Cz','Pz'],0.05)
+		
+		
 		Events_Horiz, _ = mne.events_from_annotations(mne_rawHorizCovAtt,verbose='ERROR')
  	
 		fig_CompareCond_IC_Std_Horiz = CovertAtt_Horiz.CompareCondFromIcaCompo(mne_rawHorizCovAtt,Events_Horiz,['eeg'],-0.1,1.0,0.15,'Std',[1,1],'Standards Horizontal',2000,0.15,None)
@@ -1580,29 +1668,47 @@ if __name__ == "__main__":
 		
 		CovertAtt_Horiz.plotDiamPupillCompareStdDevAtt (mne_rawHorizCovAtt,['PupDi_LEye','PupDi_REye'],-0.1,0.6,0.05,None)
 		
-		CovertAtt_Horiz.GazeSpectralAnalysis(mne_rawHorizCovAtt,['Gaze_LEye_X','Gaze_LEye_Y','Gaze_REye_X','Gaze_REye_Y'],0.25,15,0.1)
+		figSpectGaze,Results_SpectGaze = CovertAtt_Horiz.GazeSpectralAnalysis(mne_rawHorizCovAtt,['Gaze_LEye_X','Gaze_LEye_Y','Gaze_REye_X','Gaze_REye_Y'],0.25,15,0.1)
 		
-# 		Behav_Acc_Horiz,TabNbStimPerBlock_Horiz,figFeatures_Horiz,Features_Horiz,nb_spatial_filters,NbPtsEpoch= CovertAtt_Horiz.ComputeFeatures(mne_rawHorizCovAtt)
-# 		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Left,accuracy_Right = CovertAtt_Horiz.ClassicCrossValidation(Features_Horiz,nb_spatial_filters,NbPtsEpoch)
-# 		print("   *********** Classic X-Validation ")
-# 		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
-# 		print("   ***********   ")
-# 		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
-# 		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
-# 		print("     Accuracy Stim Left Only   :  " ,  "{:.2f}".format(accuracy_Left))
-# 		print("     Accuracy Stim Right Only  :  " , "{:.2f}".format(accuracy_Right))	
-# 			
-# 		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Left,accuracy_Right = CovertAtt_Horiz.ComputeAccuracy(mne_rawHorizCovAtt,TabNbStimPerBlock_Horiz)
-# 		print("   *********** X-Validation with retrained Xdawn ")
-# 		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
-# 		print("   ***********   ")
-# 		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
-# 		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
-# 		print("     Accuracy Stim Left Only   :  " ,  "{:.2f}".format(accuracy_Left))
-# 		print("     Accuracy Stim RightOnly  :  " , "{:.2f}".format(accuracy_Right))
+		Behav_Acc_Horiz,TabNbStimPerBlock_Horiz,figFeatures_Horiz,Features_Horiz,nb_spatial_filters,NbPtsEpoch= CovertAtt_Horiz.ComputeFeatures(mne_rawHorizCovAtt)
+		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Left,accuracy_Right = CovertAtt_Horiz.ClassicCrossValidation(Features_Horiz,nb_spatial_filters,NbPtsEpoch)
+		print("   *********** Classic X-Validation ")
+		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+		print("   ***********   ")
+		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+		print("     Accuracy Stim Left Only   :  " ,  "{:.2f}".format(accuracy_Left))
+		print("     Accuracy Stim Right Only  :  " , "{:.2f}".format(accuracy_Right))	
+		XValid_Acc_1TrainXdawn = {"All":accuracy_stds_devs,"Std":accuracy_stds,"Dev":accuracy_devs,"Left":accuracy_Left,"Right":accuracy_Right}
+
+		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Left,accuracy_Right = CovertAtt_Horiz.ComputeAccuracy(mne_rawHorizCovAtt,TabNbStimPerBlock_Horiz)
+		print("   *********** X-Validation with retrained Xdawn ")
+		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+		print("   ***********   ")
+		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+		print("     Accuracy Stim Left Only   :  " ,  "{:.2f}".format(accuracy_Left))
+		print("     Accuracy Stim RightOnly  :  " , "{:.2f}".format(accuracy_Right))
+		XValid_Acc_ReTrainXdawn = {"All":accuracy_stds_devs,"Std":accuracy_stds,"Dev":accuracy_devs,"Left":accuracy_Left,"Right":accuracy_Right}
 		
 		
 		
+		Mean_LE_XFix =  np.nanmean(Perct_FixCross_Leye)
+		Mean_RE_XFix =  np.nanmean(Perct_FixCross_Reye)
+		Mean_LE_Sacc =  np.nanmean(NbSaccades_LEye)
+		Mean_RE_Sacc =  np.nanmean(NbSaccades_REye)
+		# Save results computed from gaze data in a *json file
+		if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
+			os.mkdir(RootDirectory_Results + SUBJECT_NAME)
+		SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_Cov_Att_Horiz.json"
+
+		
+		Results = {"PercentFix_LeftEye" : Mean_LE_XFix,"PercentFix_RightEye" : Mean_RE_XFix,"NumberOfSaccades_LeftEye" : Mean_LE_Sacc,"NumberOfSaccades_RightEye" : Mean_RE_Sacc,"P300Effect":P300Effect_OK}
+	
+		with open(SaveDataFilename, "w") as outfile: 
+			   json.dump(Results, outfile)
+			   
+		py_tools.append_to_json_file(SaveDataFilename, {'CrossVal_1TrainXdawn':XValid_Acc_1TrainXdawn,'CrossVal_ReTrainXdawn':XValid_Acc_ReTrainXdawn})	         
 		
 		# Vertical Session
 		
