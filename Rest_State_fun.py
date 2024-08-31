@@ -24,6 +24,7 @@ import warnings
 
 from tensorpac import Pac
 import json
+import neurokit2 as nk
 
 import os
 import glob
@@ -200,6 +201,32 @@ class Rest:
 		
 		
 		return Results
+	
+	def RespirationAnalysis(self,raw,ChanLabel):
+		Raw_Respi = raw.copy()
+		Raw_Respi = Raw_Respi.pick_channels(['Resp'],verbose='ERROR')
+		
+		Respi_data = Raw_Respi._data[0,:]
+
+
+		rsp_signals, info = nk.rsp_process(Respi_data, sampling_rate=Raw_Respi.info['sfreq'])
+		nk.rsp_plot(rsp_signals, info)
+		
+
+		RSP_RATE = py_tools.remove_outliers(np.array(rsp_signals['RSP_Rate'][info['RSP_Troughs']]),20,2)
+		RSP_Amplitude = py_tools.remove_outliers(np.array(rsp_signals['RSP_Amplitude'][info['RSP_Troughs']]),20,2)
+		
+		RSP_RATE_Mean = np.mean(RSP_RATE)
+		RSP_RATE_Std = np.std(RSP_RATE)
+		RSP_Amplitude_Mean = np.mean(RSP_Amplitude)
+		RSP_Amplitude_Std = np.std(RSP_Amplitude)
+		
+		return RSP_RATE_Mean,RSP_RATE_Std, RSP_Amplitude_Mean, RSP_Amplitude_Std
+		
+	
+	
+	
+	
 
 class NumpyEncoder(json.JSONEncoder):
     """ Special json encoder for numpy types """
@@ -226,6 +253,12 @@ if __name__ == "__main__":
 			os.mkdir(RootDirectory_Results + SUBJECT_NAME)
 		# Read fif filname and convert in raw object
 		raw_Rest = Rest(FifFileName)
+		
+		
+		RSP_RATE_Mean,RSP_RATE_Std, RSP_Amplitude_Mean, RSP_Amplitude_Std = raw_Rest.RespirationAnalysis(raw_Rest.mne_raw,'Resp')
+
+		
+		
 		Twin = 10 # s
 		DeltaF = 0.25 # Hz
 		Epochs,reconst_raw =  raw_Rest.PreprocAndEpoch(raw_Rest.mne_raw, Twin)
@@ -243,11 +276,15 @@ if __name__ == "__main__":
 		
 		
 		if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
-			os.mkdir(RootDirectory_Results + SUBJECT_NAME)
+ 			os.mkdir(RootDirectory_Results + SUBJECT_NAME)
 		SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_Rest.json"
 		with open(SaveDataFilename, "w") as outfile: 
 			   json.dump(json.dumps( {"PowerNorm" : PowerNorm}, cls=NumpyEncoder), outfile)
 		py_tools.append_to_json_file(SaveDataFilename,json.dumps( {"PAC" : PAC_Chan}, cls=NumpyEncoder))
 		py_tools.append_to_json_file(SaveDataFilename,json.dumps( {"SpecCaracteristic" : Results_Spec}, cls=NumpyEncoder))
+		
+		Results_Respi = {"RespiRate_Mean" : RSP_RATE_Mean,"RespiRate_Std" : RSP_RATE_Std,"RespiAmplitude_Mean" : RSP_Amplitude_Mean,"RespiAmplitude_Std" : RSP_Amplitude_Std}
+
+		py_tools.append_to_json_file(SaveDataFilename,Results_Respi)
 
 

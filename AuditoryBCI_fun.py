@@ -23,6 +23,11 @@ import sys
 import neurokit2 as nk
 sys.path.append(PyABA_path)
 
+from scipy.interpolate import CubicSpline
+
+from fooof.plts.annotate import plot_annotated_model
+from fooof import FOOOF
+
 import pyABA_algorithms,mne_tools,py_tools,gaze_tools
 from mne.channels import combine_channels
 
@@ -97,23 +102,6 @@ def calculate_respiratory_phase(resp_signal, peaks, troughs):
 
 
 
-def plot_phases_on_circle(phases):
-	"""
-	Trace les phases respiratoires sur un cercle.
-	Args:
-		phases (array): Phases respiratoires en termes d'angle.
-    """
-	# Convertir les phases en radians pour l'affichage en coordonnées polaires
-	radians = np.deg2rad(phases)
-	# Tracer les phases sur un cercle
-	plt.figure(figsize=(6, 6))
-	ax = plt.subplot(111, polar=True)
-	ax.scatter(radians, np.ones_like(radians), s=7, color='blue')
-	ax.set_yticklabels([])  # Masquer les labels du rayon
-	ax.set_theta_zero_location("E")  # 0° en haut (au nord)
-	ax.set_theta_direction(1)  # Sens des aiguilles d'une montre 
-	plt.title('Respiration phases synchronized with stimuli')
-	plt.show()
 
 
 class AudBCI:
@@ -943,7 +931,78 @@ class AudBCI:
 
 		Phase_synch_Stim = phases[Lat_Stim]
 
-		plot_phases_on_circle(Phase_synch_Stim)
+		py_tools.plot_phases_on_circle(Phase_synch_Stim)
+		
+		
+		
+		
+		
+	def EOGSpectralAnalysis(self,raw,List_NameChan,FreqMin,FreqMax,DeltaF,EOG_Type):
+		raw_EOG = raw.copy()
+		raw_EOG.pick(List_NameChan)
+		if (EOG_Type=='Horiz'):
+			raw_EOG_data = raw_EOG._data[1,:]-raw_EOG._data[0,:]
+		else:
+			raw_EOG_data = (raw_EOG._data[1,:]+raw_EOG._data[0,:])/2
+		
+		Freqs_Band = np.arange(FreqMin,FreqMax,DeltaF)
+		
+		frequence_echantillonnage = raw_EOG.info['sfreq']
+		
+		Events, Events_dict = mne.events_from_annotations(raw_EOG,verbose='ERROR')
+		Events_dictStim = {}
+		for evt in  Events_dict.items():
+			EvtLabel_curr = list(evt)[0]
+			if ((EvtLabel_curr.find('Std')>=0) | (EvtLabel_curr.find('Dev')>=0)):
+				Events_dictStim.update({EvtLabel_curr : Events_dict[EvtLabel_curr]})
+				
+				
+		Events_stim,_ = mne.events_from_annotations(raw_EOG,event_id=Events_dictStim,verbose='ERROR')
+		ix_BegEndTrial = np.where(np.diff(Events_stim[:,0])>frequence_echantillonnage)[0]
+		ix_Begin = np.concatenate(([Events_stim[0,0]],Events_stim[ix_BegEndTrial-1,0]),axis=0)
+		ix_End = np.concatenate((Events_stim[ix_BegEndTrial,0],[Events_stim[-1,0]]),axis=0)
+		TrialsDuration = ix_End-ix_Begin
+		NbTrials = len(ix_Begin)
+		Spectre_EOG = np.zeros((NbTrials,len(Freqs_Band)))
+		for i_trial in range(NbTrials):
+			Sig_curr = raw_EOG_data[ix_Begin[i_trial]:ix_End[i_trial]]
+			# Calculer le spectre
+			freqs, spectre,_ = py_tools.calculer_spectre(Sig_curr, frequence_echantillonnage)
+			spline = CubicSpline(freqs, spectre) 
+			Spectre_EOG[i_trial,:] = spline(Freqs_Band)
+				
+
+		fm = FOOOF(min_peak_height=0.25,max_n_peaks=1)
+		freq_range = [0.1, 15]
+		figSpectEOG = plt.figure()
+		Results = dict()
+
+		fm.fit(Freqs_Band, np.nanmean(Spectre_EOG,axis=0), freq_range)
+		plot_annotated_model(fm, annotate_peaks=True, annotate_aperiodic=True, plt_log=False)
+		if (EOG_Type=='Horiz'):
+			plt.title('Horizontal EOG',fontsize = 9)
+		else:
+			plt.title('Vertical EOG',fontsize = 9)
+		plt.xlabel('Frequency (Hz)',fontsize=7)
+		plt.ylabel('Amplitude ',fontsize=7)
+		plt.tick_params(axis='x',labelsize=8)
+		plt.tick_params(axis='y',labelsize=8)
+		if (EOG_Type=='Horiz'):
+			EOG_name = "VerticalEOG"
+		else:
+			EOG_name = "HorizontalEOG"
+	
+		Results['ExponentCoeff_' + EOG_name]=fm.aperiodic_params_[1]
+		if len(fm.peak_params_)>0:
+			Results['PeaksFreq_'+ EOG_name] = fm.peak_params_[0][0]
+			Results['PeaksPow_'+ EOG_name] = fm.peak_params_[0][1]
+			Results['PeaksBandWidth_'+ EOG_name] = fm.peak_params_[0][2]
+		plt.gcf().suptitle("Spectra of Eye Movements")		
+
+		return figSpectEOG,Results		
+		
+		
+	
 		
 		
 		
@@ -998,7 +1057,8 @@ if __name__ == "__main__":
 		raw_AudBCI.RespirationSynchrony(raw_AudBCI.mne_raw,'Resp',[Events_dict['DevNo/AttNo'],Events_dict['DevYes/AttYes'],Events_dict['DevNo/AttYes'],Events_dict['DevYes/AttNo'],Events_dict['StdNo/AttNo'],Events_dict['StdYes/AttYes'],Events_dict['StdNo/AttYes'],Events_dict['StdYes/AttNo']])
 		
 		
-		
+		figSpectVertiEOG,Results_SpectVertiEOG = raw_AudBCI.EOGSpectralAnalysis(raw_AudBCI.mne_raw,['Fp1','Fp2'],0.25,15,0.1,'Verti')
+		figSpectHorizEOG,Results_SpectHorizEOG = raw_AudBCI.EOGSpectralAnalysis(raw_AudBCI.mne_raw,['EOGLef','EOGRig'],0.25,15,0.1,'Horiz')
 
 
 

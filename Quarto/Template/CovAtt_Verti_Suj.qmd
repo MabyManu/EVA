@@ -305,6 +305,24 @@ else:
 
 
 
+## Spectral analysis of Vertical EOG for each trial
+```{python}
+if FlagProcessAnalysis :
+	figSpectVertiEOG,Results_SpectVertiEOG = CovertAtt_Verti.EOGSpectralAnalysis(mne_rawVertiCovAtt,['Fp1','Fp2'],0.25,15,0.1,'Verti')
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+## Spectral analysis of Horizontal EOG for each trial
+```{python}
+if FlagProcessAnalysis :
+	figSpectHorizEOG,Results_SpectHorizEOG = CovertAtt_Verti.EOGSpectralAnalysis(mne_rawVertiCovAtt,['EOGLef','EOGRig'],0.25,15,0.1,'Horiz')
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+
+
 
 
 
@@ -331,6 +349,7 @@ if FlagProcessAnalysis :
 		   
 	py_tools.append_to_json_file(SaveDataFilename, {'CrossVal_1TrainXdawn':XValid_Acc_1TrainXdawn,'CrossVal_ReTrainXdawn':XValid_Acc_ReTrainXdawn})	
 	py_tools.append_to_json_file(SaveDataFilename,  Results_SpectGaze)
-         
+	py_tools.append_to_json_file(SaveDataFilename,  Results_SpectVertiEOG)
+	py_tools.append_to_json_file(SaveDataFilename,  Results_SpectHorizEOG)         
 
 ```

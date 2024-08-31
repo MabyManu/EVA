@@ -14,12 +14,14 @@ import glob
 RootAnalysisFolder = os.path.split(os.path.split(os.getcwd())[0])[0]
 
 import mne
+import json
 import matplotlib.pyplot as plt
 plt.rcParams['figure.figsize']=(15,8)
 plt.rcParams["figure.dpi"] = 300.
 import sys
 sys.path.append(RootAnalysisFolder)
 from ClapBlink_fun import ClapBlink
+from py_tools import NumpyEncoder
 ```
 
 
@@ -56,7 +58,21 @@ else:
 # Plot the EOG signal durring clapping session
 ```{python}
 if FlagProcessAnalysis :
-	raw_ClapBlink.PlotBlink()
+	NbBlinkPerBlock =  raw_ClapBlink.PlotBlink()
 else:
 	print("  ****************         NO DATA          ****************")		
+```
+
+
+
+
+# Save results computed from gaze data in a *json file
+```{python}
+if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
+	os.mkdir(RootDirectory_Results + SUBJECT_NAME)
+SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_ClapBlink.json"
+
+with open(SaveDataFilename, "w") as outfile: 
+	   json.dump(json.dumps( {"NbBlinkPerBlock" : NbBlinkPerBlock}, cls=NumpyEncoder), outfile)
+	   
 ```

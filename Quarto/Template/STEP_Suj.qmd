@@ -171,7 +171,7 @@ if FlagProcessAnalysis :
 ```{python}
 ## Save results computed from gaze data in a *json file
 if FlagProcessAnalysis :
-	TabParamName=['Latency_InitSacc','LogAmpGain','FixationDurationOnTarget']
+	TabParamName=['Latency_InitSacc','LogAmpGain','FixationDurationOnTarget','VariabilityOfFixation','MissingDataPercent']
 	if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
 		os.mkdir(RootDirectory_Results + SUBJECT_NAME)	
 	SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_STEP.json"

@@ -28,6 +28,7 @@ from mne.channels import combine_channels
 
 import pandas as pd
 from pandas import DataFrame
+import neurokit2 as nk
 
 import seaborn as sns 
 
@@ -41,6 +42,9 @@ from tqdm import tqdm_notebook
 
 sys.path.append(PyABA_path)
 import py_tools,gaze_tools,mne_tools
+
+sys.path.append(PyABA_path + '/PyGazeAnalyser')
+from pygazeanalyser import detectors
 
 from matplotlib.colors import TwoSlopeNorm
 import numpy.matlib
@@ -649,7 +653,26 @@ class ActPass:
 		raw_Pupil = self.mne_raw.copy()
 		raw_Pupil.pick(['PupDi_LEye', 'PupDi_REye'])
 		
+		raw_Gaze = self.mne_raw.copy()
+		SampFreq = raw_Gaze.info['sfreq']
+		raw_Gaze.pick(['Gaze_LEye_X','Gaze_LEye_Y'])
+		Gaze_data_X = raw_Gaze._data[0,:]
+		Gaze_data_Y = raw_Gaze._data[1,:]
 		
+		Sfix, Efix = detectors.fixation_detection(Gaze_data_X, Gaze_data_Y, raw_Gaze.times*SampFreq, missing=np.NaN, maxdist=200, mindur=75)
+
+		WindowDuration = 1.5 #s
+
+		FixInterkeep = []
+# 		fig_pup = plt.figure()
+# 		plt.plot(raw_Gaze.times,(Gaze_data_X-960)/50)
+		
+		for ifix in range(len(Sfix)):
+			if (Efix[ifix][2]>WindowDuration*SampFreq):
+# 				fig_pup.get_axes()[0].axvspan(Efix[ifix][0]/SampFreq,Efix[ifix][1]/SampFreq,color='g',alpha=0.2)
+				FixInterkeep.append([Efix[ifix][0],Efix[ifix][1]])
+				
+
 		WindowDuration = 1.5 #s
 		
 		events_from_annot, event_dict = mne.events_from_annotations(raw_Pupil,verbose='ERROR')
@@ -664,6 +687,19 @@ class ActPass:
 		events_from_annot[ix_FirstStimCond1,2] = 11
 		events_from_annot[ix_FirstStimCond2,2] = 21
 
+		
+		events_from_annot, event_dict = mne.events_from_annotations(raw_Pupil,verbose='ERROR')
+		
+		
+		
+		ix_FirstStimCond1 = np.min((np.where(events_from_annot[:,2]==event_dict[LabelCond[0][0]])[0][0],np.where(events_from_annot[:,2]==event_dict[LabelCond[0][1]])[0][0]))
+		ix_LastStimCond1 = np.max((np.where(events_from_annot[:,2]==event_dict[LabelCond[0][0]])[0][-1],np.where(events_from_annot[:,2]==event_dict[LabelCond[0][1]])[0][-1]))
+		ix_FirstStimCond2 = np.min((np.where(events_from_annot[:,2]==event_dict[LabelCond[1][0]])[0][0],np.where(events_from_annot[:,2]==event_dict[LabelCond[1][1]])[0][0]))
+		ix_LastStimCond2 = np.max((np.where(events_from_annot[:,2]==event_dict[LabelCond[1][0]])[0][-1],np.where(events_from_annot[:,2]==event_dict[LabelCond[1][1]])[0][-1]))
+		
+		events_from_annot[ix_FirstStimCond1,2] = 11
+		events_from_annot[ix_FirstStimCond2,2] = 21
+		
 		
 		ixWinCond1 = np.arange(events_from_annot[ix_FirstStimCond1,0],events_from_annot[ix_LastStimCond1,0],WindowDuration*raw_Pupil.info['sfreq'])
 		ixWinCond2 = np.arange(events_from_annot[ix_FirstStimCond2,0],events_from_annot[ix_LastStimCond2,0],WindowDuration*raw_Pupil.info['sfreq'])
@@ -695,6 +731,21 @@ class ActPass:
 				 verbose = 'ERROR'
 		 )
 		
+		Epoch2remove = []
+		for i_epoch in range(len(evt_Cond)):
+			epochWin_start = evt_Cond[i_epoch,0]
+			epochWin_stop = evt_Cond[i_epoch,0] + int(WindowDuration*SampFreq)
+			icpt = 0
+			for i_interfix in range (len(FixInterkeep)):		
+				if (FixInterkeep[i_interfix][0] <= epochWin_start <= FixInterkeep[i_interfix][1] and FixInterkeep[i_interfix][0] <= epochWin_stop <= FixInterkeep[i_interfix][1]):
+					icpt = icpt + 1
+					
+			if (icpt ==0 ):
+				Epoch2remove.append(i_epoch)
+				
+		Epochs_DiamPupil.drop(Epoch2remove,verbose=False)
+			
+		
 		del raw_Pupil
 		with warnings.catch_warnings():
 			warnings.simplefilter("ignore", category=RuntimeWarning)
@@ -723,6 +774,8 @@ class ActPass:
 				 ix = ix + 1
 
 			
+		
+		
 		PupilDiam_Cond1_epochData = py_tools.AutoReject(PupilDiam_Cond1_epochData_raw,10)
 		PupilDiam_Cond2_epochData = py_tools.AutoReject(PupilDiam_Cond2_epochData_raw,10)
 		
@@ -786,6 +839,41 @@ class ActPass:
 	
 	
 	
+	
+	def RespirationSynchrony(self,raw,TabStim):
+		Raw_Respi = raw.copy()
+		Raw_Respi = Raw_Respi.pick_channels(['Resp'],verbose='ERROR')
+		Events, Events_dict = mne.events_from_annotations(Raw_Respi,verbose='ERROR')
+		code_Stim = 99
+		events_Stim=mne.event.merge_events(Events, [Events_dict[TabStim[0]]], code_Stim, replace_events=True)
+		
+		for i_stim in range(len(TabStim)-1):
+			events_Stim=mne.event.merge_events(events_Stim, [Events_dict[TabStim[i_stim+1]]], code_Stim, replace_events=True)
+		
+		Lat_Stim =  events_Stim[np.where(events_Stim[:,2]==99)[0],0]
+		
+		ix_begin_Block = Lat_Stim[0]
+		ix_end_Block = Lat_Stim[-1]
+
+
+		Respi_data = Raw_Respi._data[0,ix_begin_Block:ix_end_Block+1]
+
+
+		rsp_signals, info = nk.rsp_process(Respi_data, sampling_rate=Raw_Respi.info['sfreq'])
+		nk.rsp_plot(rsp_signals, info)
+		
+		Phase_synch_Stim = rsp_signals['RSP_Phase_Completion'][Lat_Stim-ix_begin_Block]*360
+		py_tools.plot_phases_on_circle(Phase_synch_Stim)
+		
+		RSP_RATE = py_tools.remove_outliers(np.array(rsp_signals['RSP_Rate'][info['RSP_Troughs']]),20,2)
+		RSP_Amplitude = py_tools.remove_outliers(np.array(rsp_signals['RSP_Amplitude'][info['RSP_Troughs']]),20,2)
+		
+		RSP_RATE_Mean = np.mean(RSP_RATE)
+		RSP_RATE_Std = np.std(RSP_RATE)
+		RSP_Amplitude_Mean = np.mean(RSP_Amplitude)
+		RSP_Amplitude_Std = np.std(RSP_Amplitude)
+		
+		return RSP_RATE_Mean,RSP_RATE_Std, RSP_Amplitude_Mean, RSP_Amplitude_Std
 		
 		
 if __name__ == "__main__":	
@@ -805,29 +893,33 @@ if __name__ == "__main__":
 		
 		# Read fif filname and convert in raw object
 		raw_ActPass = ActPass(FifFileName)
-		fig_StdDiv_EmergCompo = raw_ActPass.SignificativeComponante('STD/DIV',-0.2, 1.5, (-0.2,0),'g',0.75)
-		fig_StdFoc_EmergCompo = raw_ActPass.SignificativeComponante('STD/FOC',-0.2, 1.5, (-0.2,0),'r',0.75)
-		fig_DevDiv_EmergCompo = raw_ActPass.SignificativeComponante('DEV/DIV',-0.2, 1.5, (-0.2,0),'g',2)
-		fig_DevFoc_EmergCompo = raw_ActPass.SignificativeComponante('DEV/FOC',-0.2, 1.5, (-0.2,0),'r',2)
+# 		fig_StdDiv_EmergCompo = raw_ActPass.SignificativeComponante('STD/DIV',-0.2, 1.5, (-0.2,0),'g',0.75)
+# 		fig_StdFoc_EmergCompo = raw_ActPass.SignificativeComponante('STD/FOC',-0.2, 1.5, (-0.2,0),'r',0.75)
+# 		fig_DevDiv_EmergCompo = raw_ActPass.SignificativeComponante('DEV/DIV',-0.2, 1.5, (-0.2,0),'g',2)
+# 		fig_DevFoc_EmergCompo = raw_ActPass.SignificativeComponante('DEV/FOC',-0.2, 1.5, (-0.2,0),'r',2)
+# # 		
+# 		fig_STD_FocVsDiv = raw_ActPass.StimComp2Cond(['STD/FOC','STD/DIV']   ,-0.2, 1.5, (-0.2,0),['r','g'],[0.75,0.75])
+# 		fig_DEV_FocVsDiv = raw_ActPass.StimComp2Cond(['DEV/FOC','DEV/DIV']   ,-0.2, 1.5, (-0.2,0),['r','g'],[2.0,2.0])
 # 		
-		fig_STD_FocVsDiv = raw_ActPass.StimComp2Cond(['STD/FOC','STD/DIV']   ,-0.2, 1.5, (-0.2,0),['r','g'],[0.75,0.75])
-		fig_DEV_FocVsDiv = raw_ActPass.StimComp2Cond(['DEV/FOC','DEV/DIV']   ,-0.2, 1.5, (-0.2,0),['r','g'],[2.0,2.0])
-		
-		fig_StdDev_FOC = raw_ActPass.CompareSTD_DEV(['STD/FOC','DEV/FOC'],-0.2, 1.5, (-0.2,0),['r','r'],[0.75,2])
-		fig_StdDev_DIV = raw_ActPass.CompareSTD_DEV(['STD/DIV','DEV/DIV'],-0.2, 1.5, (-0.2,0),['g','g'],[0.75,2])
-		fig_mmn = raw_ActPass.Analysis_MMN([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']],-0.2, 1.5, (-0.2,0),['r','g'],[3,3])
-		fig_CountEffect,CountEffect_OK =  raw_ActPass.Compare_STDvsDEV_FocCondition(['STD/FOC','DEV/FOC'], -0.2, 1.5, (-0.2,0),['r','r'],[0.75,2],[0.25,0.8],['Fz','Cz','Pz'],0.05)
-		fig_DEV_FocVsDiv,FocDivEffect_OK =  raw_ActPass.Compare_DEV_2Cond(['DEV/FOC','DEV/DIV'], -0.2, 1.5, (-0.2,0),['r','g'],[2.0,2.0],[0.25,0.8],['Fz','Cz','Pz'],0.05)
-		
+# 		fig_StdDev_FOC = raw_ActPass.CompareSTD_DEV(['STD/FOC','DEV/FOC'],-0.2, 1.5, (-0.2,0),['r','r'],[0.75,2])
+# 		fig_StdDev_DIV = raw_ActPass.CompareSTD_DEV(['STD/DIV','DEV/DIV'],-0.2, 1.5, (-0.2,0),['g','g'],[0.75,2])
+# 		fig_mmn = raw_ActPass.Analysis_MMN([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']],-0.2, 1.5, (-0.2,0),['r','g'],[3,3])
+# 		fig_CountEffect,CountEffect_OK =  raw_ActPass.Compare_STDvsDEV_FocCondition(['STD/FOC','DEV/FOC'], -0.2, 1.5, (-0.2,0),['r','r'],[0.75,2],[0.25,0.8],['Fz','Cz','Pz'],0.05)
+# 		fig_DEV_FocVsDiv,FocDivEffect_OK =  raw_ActPass.Compare_DEV_2Cond(['DEV/FOC','DEV/DIV'], -0.2, 1.5, (-0.2,0),['r','g'],[2.0,2.0],[0.25,0.8],['Fz','Cz','Pz'],0.05)
+# 		
 
-		fig_HR = raw_ActPass.HeartRate_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
+# 		fig_HR = raw_ActPass.HeartRate_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
 		fig_Pupill = raw_ActPass.PupilDiam_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
 		
 		
-		if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
-			os.mkdir(RootDirectory_Results + SUBJECT_NAME)
-		SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_ActPass.json"
-		Results = {"CountEffect" :CountEffect_OK, "FocDivEffect" : FocDivEffect_OK}
+		RSP_RATE_Mean_Div,RSP_RATE_Std_Div, RSP_Amplitude_Mean_Div, RSP_Amplitude_Std_Div = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/DIV','DEV/DIV']) # DIV condition
+		RSP_RATE_Mean_Foc,RSP_RATE_Std_Foc, RSP_Amplitude_Mean_Foc, RSP_Amplitude_Std_Foc = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/FOC','DEV/FOC']) # FOC condition
+		
+		
+# 		if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
+# 			os.mkdir(RootDirectory_Results + SUBJECT_NAME)
+# 		SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_ActPass.json"
+# 		Results = {"CountEffect" :CountEffect_OK, "FocDivEffect" : FocDivEffect_OK}
 
-		with open(SaveDataFilename, "w") as outfile: 
-			   json.dump(Results, outfile)
+# 		with open(SaveDataFilename, "w") as outfile: 
+# 			   json.dump(Results, outfile)

@@ -21,6 +21,11 @@ plt.rcParams['figure.figsize']=(15,8)
 plt.rcParams["figure.dpi"] = 300.
 import sys
 sys.path.append(RootAnalysisFolder)
+
+from AddPyABA_Path import PyABA_path
+sys.path.append(PyABA_path)
+import gaze_tools,py_tools
+
 from ActPass_fun import ActPass
 ```
 
@@ -137,6 +142,19 @@ fig_HR = raw_ActPass.HeartRate_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/D
 fig_Pupill = raw_ActPass.PupilDiam_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
 ```
 
+
+
+## Respiration analysis in DIV condition
+```{python}
+RSP_RATE_Mean_Div,RSP_RATE_Std_Div, RSP_Amplitude_Mean_Div, RSP_Amplitude_Std_Div = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/DIV','DEV/DIV']) # DIV condition
+```
+
+## Respiration analysis in FOC condition
+```{python}
+RSP_RATE_Mean_Foc,RSP_RATE_Std_Foc, RSP_Amplitude_Mean_Foc, RSP_Amplitude_Std_Foc = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/FOC','DEV/FOC']) # FOC condition
+```
+
+
 # Save results computed from gaze data in a *json file
 ```{python}
 if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
@@ -146,5 +164,10 @@ Results = {"CountEffect" :CountEffect_OK, "FocDivEffect" : FocDivEffect_OK}
 
 with open(SaveDataFilename, "w") as outfile: 
 	   json.dump(Results, outfile)
+	   
+
+py_tools.append_to_json_file(SaveDataFilename, {'Resp_Rate_MEAN_Div':RSP_RATE_Mean_Div,'Resp_Rate_STD_Div':RSP_RATE_Std_Div,'Resp_Amp_MEAN_Div':RSP_Amplitude_Mean_Div,'Resp_Amp_STD_Div':RSP_Amplitude_Std_Div})	 
+py_tools.append_to_json_file(SaveDataFilename, {'Resp_Rate_MEAN_Foc':RSP_RATE_Mean_Foc,'Resp_Rate_STD_Foc':RSP_RATE_Std_Foc,'Resp_Amp_MEAN_Foc':RSP_Amplitude_Mean_Foc,'Resp_Amp_STD_Foc':RSP_Amplitude_Std_Foc})	 
+   
 	   
 ```

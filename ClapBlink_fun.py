@@ -68,14 +68,14 @@ class ClapBlink:
 		
 		
 		
-		Amplitude_Blink = []
-		Rank_Blink = []
+		NbBlinkPerBlock = np.zeros(NbBlocs)
 		
 		NbCol = int(np.ceil(np.sqrt(NbBlocs)))
 		
 		NbRow = int(np.ceil(NbBlocs/NbCol))
 		figEOG= plt.figure()
 		for i_fig in range(NbBlocs):
+			cptblink = 0
 			Time_plt = self.mne_raw.times[EvtClap_start[i_fig]-int(self.mne_raw.info['sfreq']):EvtClap_stop[i_fig]+int(self.mne_raw.info['sfreq'])]
 			Data_plt = Data_EOG[EvtClap_start[i_fig]-int(self.mne_raw.info['sfreq']):EvtClap_stop[i_fig]+int(self.mne_raw.info['sfreq'])]
 			minplt = np.min(Data_plt)
@@ -83,7 +83,6 @@ class ClapBlink:
 			
 			ax1 = plt.subplot(NbCol, NbRow, i_fig+1)
 			ax1.plot(Time_plt,Data_plt*1e6)
-			i_rank = 0
 			for iclap in range(len(EvtClap)):
 				if ((EvtClap[iclap,0]>=EvtClap_start[i_fig]) & (EvtClap[iclap,0]<=EvtClap_stop[i_fig])):
 					ax1.axvline(self.mne_raw.times[EvtClap[iclap,0]],0,1,linestyle='dotted',color = 'm',linewidth=0.5)
@@ -93,11 +92,14 @@ class ClapBlink:
 					ax1.text(self.mne_raw.times[eog_events[i_blink,0]],Data_EOG[eog_events[i_blink,0]]*1e6, f"{Data_EOG[eog_events[i_blink,0]]*1e6:.1f}")
 					ax1.set_xlabel('Time (s)',fontsize=10)            
 					ax1.set_ylabel('Amplitude (µV)',fontsize=10) 
-					Amplitude_Blink.append(Data_EOG[eog_events[i_blink,0]]*1e6)
-					Rank_Blink.append(i_rank)
-					i_rank = i_rank  + 1
+					cptblink = cptblink + 1
+			
+			
+			NbBlinkPerBlock[i_fig] = cptblink
 		plt.suptitle('Vertical EOG') 
 		plt.show()
+		
+		return NbBlinkPerBlock
 		
 
 
@@ -118,6 +120,6 @@ if __name__ == "__main__":
 		
 		# Read fif filname and convert in raw object
 		raw_ClapBlink = ClapBlink(FifFileName)
-		raw_ClapBlink.PlotBlink()
+		NbBlinkPerBlock = raw_ClapBlink.PlotBlink()
 		
 		

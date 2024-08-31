@@ -308,8 +308,8 @@ if __name__ == "__main__":
 		
 		SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_STEP.json"
 		raw_Step.SaveResults_Param(Dict_Results,TabParamName,SaveDataFilename)
-		SaveDataFilename = RootDirectory_Results + "STEP/" + SUBJECT_NAME + "_STEP.json"
-		raw_Step.SaveResults_Param(Dict_Results,TabParamName,SaveDataFilename)
+# 		SaveDataFilename = RootDirectory_Results + "STEP/" + SUBJECT_NAME + "_STEP.json"
+# 		raw_Step.SaveResults_Param(Dict_Results,TabParamName,SaveDataFilename)
 		
 		Dict_Latency_InitSacc_LeftEye = { 	'Left'     : Results_MeanGaze['Latency_InitSacc_LeftEye'][0],
 											'Right'    : Results_MeanGaze['Latency_InitSacc_LeftEye'][1],
