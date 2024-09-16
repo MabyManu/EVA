@@ -26,7 +26,7 @@ import seaborn
 from AddPyABA_Path import PyABA_path
 import sys
 sys.path.append(PyABA_path)
-import py_tools,gaze_tools
+import py_tools,gaze_tools,mne_tools
 
 class STEP:
 	def __init__(self,FifFileName):
@@ -165,9 +165,27 @@ class STEP:
 	def SetDataEOG(self,raw,ListChan,LabelEOG,WeightMeanChan,TimeWindow_Start,TimeWindow_End,event_id,events_from_annot,ListCond):
 		LowFreq_EOG = 10
 		# Create Horizontal EOG from 2 channels situated close to left and right eyes
-		raw_filt_EOG = raw.copy()
+		
+		if (LabelEOG=='Horiz'):
+			raw_eeg = raw.copy()
+			raw_eeg.pick(picks=['eeg','eog'])
+			raw_eeg.drop_channels('EOGLow')
+			
+			ica = mne_tools.FitIcaRaw(raw_eeg, raw_eeg.info['ch_names'], raw_eeg.info['nchan'])
+			ica, IcaWeightsVar2save, IcaScore2save = mne_tools.VirtualEog(raw_eeg, ica, [], ['Fp1', 'Fp2'], None, None,0.8)
+			reconst_raw = raw_eeg.copy()
+			ica.apply(reconst_raw)
+			
+			
+			raw_filt_EOG = reconst_raw.copy()
+
+		
+		else:
+			raw_filt_EOG = raw.copy()
+			
 		raw_filt_EOG.filter(None,LowFreq_EOG,picks=ListChan,verbose='ERROR')
 		raw_filt_EOG.pick(ListChan)
+			
 		# Epoching Horizontal EOG for each condition
 		epochs_EOG = mne.Epochs(
 		         raw_filt_EOG,

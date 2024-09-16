@@ -39,7 +39,7 @@ RootFolder =  os.path.split(RootAnalysisFolder)[0]
 
 RootDirectory_RAW = RootFolder + '/_data/FIF/'
 RootDirectory_Results = RootFolder + '/_results/'
-FifFileName = RootDirectory_RAW + "***SUJ***\***SUJ***_VisAtt_Verti.raw.fif"
+FifFileName = RootDirectory_RAW + "***SUJ***/***SUJ***_VisAtt_Verti.raw.fif"
 
 SUBJECT_NAME = os.path.split(os.path.split(FifFileName)[0])[1]
 FlagProcessAnalysis = os.path.isfile(FifFileName)

@@ -988,9 +988,9 @@ class AudBCI:
 		plt.tick_params(axis='x',labelsize=8)
 		plt.tick_params(axis='y',labelsize=8)
 		if (EOG_Type=='Horiz'):
-			EOG_name = "VerticalEOG"
-		else:
 			EOG_name = "HorizontalEOG"
+		else:
+			EOG_name = "VerticalEOG"
 	
 		Results['ExponentCoeff_' + EOG_name]=fm.aperiodic_params_[1]
 		if len(fm.peak_params_)>0:

@@ -41,7 +41,7 @@ from sklearn.model_selection import cross_val_predict, cross_val_score, LeaveOne
 from tqdm import tqdm_notebook
 
 sys.path.append(PyABA_path)
-import py_tools,gaze_tools,mne_tools
+import py_tools,gaze_tools,mne_tools,pyABA_algorithms
 
 sys.path.append(PyABA_path + '/PyGazeAnalyser')
 from pygazeanalyser import detectors
@@ -400,16 +400,16 @@ class ActPass:
 		
 		P300_Present_Win = np.zeros(len(Epoc_Stim2_FOC_ROI.times),dtype=bool)
 		P300_Present_Win[ixstartP300TimeWin:ixstopP300TimeWin] = True
-		CountEffect_OK = 0
+		CountEffect_cmpt = 0
 		for i_cluster in range(len(cluster_p_values)):
 			if (cluster_p_values[i_cluster]<p_accept):
 				Clust_curr_start = np.where(clusters[i_cluster])[0][0]
 				Clust_curr_stop = np.where(clusters[i_cluster])[0][-1]
 				figStdDev_FOC.get_axes()[0].axvspan(Epochs_FOC.times[Clust_curr_start], Epochs_FOC.times[Clust_curr_stop],facecolor="m",alpha=0.15)	
 				
-				CountEffect_OK = CountEffect_OK + (len(np.where(np.transpose(clusters[i_cluster]) & P300_Present_Win)[0]) > 0)			
+				CountEffect_cmpt = CountEffect_cmpt + (len(np.where(np.transpose(clusters[i_cluster]) & P300_Present_Win)[0]) > 0)			
 
-	
+		CountEffect_OK = CountEffect_cmpt > 0 
 		return figStdDev_FOC,CountEffect_OK
 	
 	
@@ -497,16 +497,16 @@ class ActPass:
 		
 		P300_Present_Win = np.zeros(len(Epoc_DEV_Cond2_ROI.times),dtype=bool)
 		P300_Present_Win[ixstartP300TimeWin:ixstopP300TimeWin] = True
-		FocDivEffect_OK = 0
+		FocDivEffect_cmpt = 0
 		for i_cluster in range(len(cluster_p_values)):
 			if (cluster_p_values[i_cluster]<p_accept):
 				Clust_curr_start = np.where(clusters[i_cluster])[0][0]
 				Clust_curr_stop = np.where(clusters[i_cluster])[0][-1]
 				figDEV_2Cond.get_axes()[0].axvspan(Epochs_DEV.times[Clust_curr_start], Epochs_DEV.times[Clust_curr_stop],facecolor="m",alpha=0.15)	
 				
-				FocDivEffect_OK = FocDivEffect_OK + (len(np.where(np.transpose(clusters[i_cluster]) & P300_Present_Win)[0]) > 0)				
+				FocDivEffect_cmpt = FocDivEffect_cmpt + (len(np.where(np.transpose(clusters[i_cluster]) & P300_Present_Win)[0]) > 0)				
 
-	
+		FocDivEffect_OK =  FocDivEffect_cmpt > 0
 		return figDEV_2Cond,FocDivEffect_OK
 		
 	
@@ -874,6 +874,341 @@ class ActPass:
 		RSP_Amplitude_Std = np.std(RSP_Amplitude)
 		
 		return RSP_RATE_Mean,RSP_RATE_Std, RSP_Amplitude_Mean, RSP_Amplitude_Std
+	
+	
+	
+	
+	
+	
+	def ComputeAccuracy_STDvsDEV(self,Condition,kFold):
+		raw_eeg = self.mne_raw.copy()
+		raw_eeg = raw_eeg.pick_channels(self.Channels_Of_Interest,verbose='ERROR')
+		raw_eeg = raw_eeg.filter(self.FiltFreq_min,self.FiltFreq_max,verbose='ERROR')
+		Events, Events_dict = mne.events_from_annotations(raw_eeg,verbose='ERROR')
+		p_ClassifStd = np.zeros(kFold)
+		p_ClassifDev = np.zeros(kFold)
+		
+		
+		for i_fold in range(kFold):
+			Event_Cond = np.squeeze(Events[np.where((Events[:,2]==Events_dict['STD/' + Condition]) | (Events[:,2]==Events_dict['DEV/' + Condition])),:])
+			NbSimPerFold = np.int32(len(Event_Cond)/kFold)
+			Events_Test = Event_Cond[i_fold*NbSimPerFold:(i_fold+1)*NbSimPerFold,:]
+			Event_Train = Event_Cond
+			Event_Train = np.delete(Event_Train,np.array(np.arange(i_fold*NbSimPerFold,(i_fold+1)*NbSimPerFold)),axis=0)
+			
+			
+			raw4Train =raw_eeg.copy()
+			
+			mapping = {Events_dict['STD/' + Condition]   : 'STD/' + Condition , Events_dict['DEV/' + Condition]   : 'DEV/' + Condition }
+			annot_from_events = mne.annotations_from_events(
+			                                events=Event_Train, 
+			                                event_desc=mapping, 
+			                                sfreq=raw4Train.info['sfreq'],
+			                                orig_time=raw4Train.info['meas_date'],verbose='ERROR')
+			raw4Train=raw4Train.set_annotations(annot_from_events,verbose='ERROR')
+			
+			# Resample data to 100 Hz
+			raw4Train_dowsamp = raw4Train.copy()
+			raw4Train_dowsamp = raw4Train_dowsamp.resample(100, npad="auto")  # Resampling at 100 Hz
+			tmin = 0
+			tmax = 1.0
+			nb_spatial_filters = 2
+			rejection_rate = 0.15
+			
+			events_id = {'STD/' + Condition   : Events_dict['STD/' + Condition],'DEV/' + Condition   : Events_dict['DEV/' + Condition] }
+			SF_stddev = pyABA_algorithms.Xdawn(raw4Train_dowsamp, events_id, tmin, tmax, nb_spatial_filters)
+			
+			event_id = {'STD/' + Condition   : Events_dict['STD/' + Condition],'DEV/' + Condition   : Events_dict['DEV/' + Condition] }
+			All_epochs_Train = mne.Epochs(
+			         raw4Train,
+			         tmin=tmin, tmax=tmax,  # From 0 to 1 second after epoch onset
+			         events=Event_Train, 
+			         event_id = event_id,
+			         preload=True,
+			         proj=False,    # No additional reference
+			         baseline=None, # No baseline
+					 verbose='ERROR')
+			
+			
+			Nb_STD_Train = len(All_epochs_Train['STD/' + Condition])
+			Nb_DEV_Train = len(All_epochs_Train['DEV/' + Condition])
+			
+			
+			
+			NbStim_STD_Train_PerFold = np.int32(np.ceil(Nb_STD_Train/(kFold-1)))
+			NbStim_DEV_Train_PerFold = np.int32(np.ceil(Nb_DEV_Train/(kFold-1)))
+			
+			
+			
+			
+			TabStim_STD = []
+			cmpt = 0
+			for i_block in range((kFold-1)):
+				if (cmpt<(Nb_STD_Train-NbStim_STD_Train_PerFold)):
+					TabStim_STD.append(NbStim_STD_Train_PerFold)
+				else:
+					TabStim_STD.append(Nb_STD_Train-cmpt)
+				cmpt = cmpt + NbStim_STD_Train_PerFold
+				
+				
+			TabStim_DEV= []
+			cmpt = 0
+			for i_block in range((kFold-1)):
+				if (cmpt<(Nb_DEV_Train-NbStim_DEV_Train_PerFold)):
+					TabStim_DEV.append(NbStim_DEV_Train_PerFold)
+				else:
+					TabStim_DEV.append(Nb_DEV_Train-cmpt)
+				cmpt = cmpt + NbStim_DEV_Train_PerFold
+				
+						
+			#-----------------------------------
+			# Compute Feature Per Block
+			Feat_STD = pyABA_algorithms.Ave_Epochs_FeatComp(All_epochs_Train['STD/' + Condition],   SF_stddev, TabStim_STD,rejection_rate)
+			Feat_DEV  = pyABA_algorithms.Ave_Epochs_FeatComp(All_epochs_Train['DEV/' + Condition],   SF_stddev, TabStim_DEV,rejection_rate)
+			
+			# Compute Naive Bayes Parameters
+			NB_Param = pyABA_algorithms.NBlearn(Feat_STD, Feat_DEV)
+			
+			
+			# Compute Epoch for Test dataset
+			raw4Test =raw_eeg.copy()
+			
+			mapping = {Events_dict['STD/' + Condition]   : 'STD/'+ Condition , Events_dict['DEV/'+ Condition]   : 'DEV/' + Condition }
+			annot_from_events = mne.annotations_from_events(
+			                                events=Events_Test, 
+			                                event_desc=mapping, 
+			                                sfreq=raw4Test.info['sfreq'],
+			                                orig_time=raw4Test.info['meas_date'],verbose='ERROR')
+			raw4Test = raw4Test.set_annotations(annot_from_events,verbose='ERROR')
+			
+			
+			
+			All_epochs_Test = mne.Epochs(
+			         raw4Test,
+			         tmin=tmin, tmax=tmax,  # From 0 to 1 second after epoch onset
+			         events=Events_Test, 
+			         event_id = event_id,
+			         preload=True,
+			         proj=False,    # No additional reference
+			         baseline=None, # No baseline
+					 verbose='ERROR')
+			
+			Feat_STD  = pyABA_algorithms.Ave_Epochs_FeatComp(All_epochs_Test['STD/'+ Condition],   SF_stddev , [len(All_epochs_Test['STD/'+ Condition])],  0.0)
+			Feat_DEV  = pyABA_algorithms.Ave_Epochs_FeatComp(All_epochs_Test['DEV/'+ Condition],   SF_stddev , [len(All_epochs_Test['DEV/'+ Condition])],  0.0)
+
+
+	
+			Delta_STD = pyABA_algorithms.NBapply(NB_Param, Feat_STD)
+			Delta_DEV = pyABA_algorithms.NBapply(NB_Param, Feat_DEV)
+			
+			
+			p_ClassifStd[i_fold] = 1. / (1 + py_tools.expNoOverflow(- Delta_STD))				
+			p_ClassifDev[i_fold] = 1. / (1 + py_tools.expNoOverflow(- Delta_DEV))
+			
+		ACCURACY = (np.sum(p_ClassifStd > .5)  + np.sum(p_ClassifDev < .5)) /(kFold*2)
+		return ACCURACY
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+			
+	
+	
+	
+	
+	
+	def ComputeAccuracy_IGNvsFOC(self,kFold):
+		raw_eeg = self.mne_raw.copy()
+		raw_eeg = raw_eeg.pick_channels(self.Channels_Of_Interest,verbose='ERROR')
+		raw_eeg = raw_eeg.filter(self.FiltFreq_min,self.FiltFreq_max,verbose='ERROR')
+		Events, Events_dict = mne.events_from_annotations(raw_eeg,verbose='ERROR')
+		p_stds_and_devs_DIV = np.zeros(kFold)
+		p_stds_and_devs_FOC = np.zeros(kFold)
+		for i_fold in range(kFold):
+			Event_DIV = np.squeeze(Events[np.where((Events[:,2]==Events_dict['STD/DIV']) | (Events[:,2]==Events_dict['DEV/DIV'])),:])
+			NbSimPerFold_DIV = np.int32(len(Event_DIV)/kFold)
+			Events_DIV_Test = Event_DIV[i_fold*NbSimPerFold_DIV:(i_fold+1)*NbSimPerFold_DIV,:]
+			Event_DIV_Train = Event_DIV
+			Event_DIV_Train = np.delete(Event_DIV_Train,np.array(np.arange(i_fold*NbSimPerFold_DIV,(i_fold+1)*NbSimPerFold_DIV)),axis=0)
+			
+			Event_FOC = np.squeeze(Events[np.where((Events[:,2]==Events_dict['STD/FOC']) | (Events[:,2]==Events_dict['DEV/FOC'])),:])
+			NbSimPerFold_FOC = np.int32(len(Event_FOC)/kFold)
+			Event_FOC_Test = Event_FOC[i_fold*NbSimPerFold_FOC:(i_fold+1)*NbSimPerFold_FOC,:]
+			Event_FOC_Train = Event_FOC
+			Event_FOC_Train = np.delete(Event_FOC_Train,np.array(np.arange(i_fold*NbSimPerFold_FOC,(i_fold+1)*NbSimPerFold_FOC)),axis=0)	
+			
+			
+			
+			Event_Train = np.array(np.vstack((Event_DIV_Train,Event_FOC_Train)))
+			Event_Test = np.array(np.vstack((Events_DIV_Test,Event_FOC_Test)))
+		
+		
+		
+			raw4Train =raw_eeg.copy()
+			
+			mapping = {Events_dict['STD/DIV']   : 'STD/DIV' , Events_dict['DEV/DIV']   : 'DEV/DIV' ,
+			           Events_dict['STD/FOC']   : 'STD/FOC' , Events_dict['DEV/FOC']   : 'DEV/FOC'}
+			annot_from_events = mne.annotations_from_events(
+			                                events=Event_Train, 
+			                                event_desc=mapping, 
+			                                sfreq=raw4Train.info['sfreq'],
+			                                orig_time=raw4Train.info['meas_date'],verbose='ERROR')
+			raw4Train=raw4Train.set_annotations(annot_from_events,verbose='ERROR')
+			
+			# Resample data to 100 Hz
+			raw4Train_dowsamp = raw4Train.copy()
+			raw4Train_dowsamp = raw4Train_dowsamp.resample(100, npad="auto")  # Resampling at 100 Hz
+			tmin = 0
+			tmax = 1.0
+			nb_spatial_filters = 2
+			rejection_rate = 0.15
+			
+			events_id = {'DEV/FOC'   : Events_dict['DEV/FOC'],'DEV/DIV'   : Events_dict['DEV/DIV'] }
+			SF_DEV = pyABA_algorithms.Xdawn(raw4Train_dowsamp, events_id, tmin, tmax, nb_spatial_filters)
+			
+			events_id = {'STD/FOC'   : Events_dict['STD/FOC'],'STD/DIV'   : Events_dict['STD/DIV'] }
+			SF_STD = pyABA_algorithms.Xdawn(raw4Train_dowsamp, events_id, tmin, tmax, nb_spatial_filters)
+			
+			
+			
+			event_id = {'DEV/FOC'   : Events_dict['DEV/FOC'],'DEV/DIV'   : Events_dict['DEV/DIV'],
+			           'STD/FOC'   : Events_dict['STD/FOC'],'STD/DIV'   : Events_dict['STD/DIV'] }
+			All_epochs_Train = mne.Epochs(
+			         raw4Train,
+			         tmin=tmin, tmax=tmax,  # From 0 to 1 second after epoch onset
+			         events=Event_Train, 
+			         event_id = event_id,
+			         preload=True,
+			         proj=False,    # No additional reference
+			         baseline=None, # No baseline
+					 verbose='ERROR')
+			
+			Nb_STD_FOC_Train = len(All_epochs_Train['STD/FOC'])
+			Nb_DEV_FOC_Train = len(All_epochs_Train['DEV/FOC'])
+			Nb_STD_DIV_Train = len(All_epochs_Train['STD/DIV'])
+			Nb_DEV_DIV_Train = len(All_epochs_Train['DEV/DIV'])
+			
+			NbStim_STD_FOC_Train_PerFold = np.int32(np.ceil(Nb_STD_FOC_Train/(kFold-1)))
+			NbStim_DEV_FOC_Train_PerFold = np.int32(np.ceil(Nb_DEV_FOC_Train/(kFold-1)))
+			NbStim_STD_DIV_Train_PerFold = np.int32(np.ceil(Nb_STD_DIV_Train/(kFold-1)))
+			NbStim_DEV_DIV_Train_PerFold = np.int32(np.ceil(Nb_DEV_DIV_Train/(kFold-1)))
+			
+			
+			
+			
+			
+			TabStim_STD_FOC = []
+			cmpt = 0
+			for i_block in range((kFold-1)):
+				if (cmpt<(Nb_STD_FOC_Train-NbStim_STD_FOC_Train_PerFold)):
+					TabStim_STD_FOC.append(NbStim_STD_FOC_Train_PerFold)
+				else:
+					TabStim_STD_FOC.append(Nb_STD_FOC_Train-cmpt)
+				cmpt = cmpt + NbStim_STD_FOC_Train_PerFold
+				
+			TabStim_STD_DIV = []
+			cmpt = 0
+			for i_block in range((kFold-1)):
+				if (cmpt<(Nb_STD_DIV_Train-NbStim_STD_DIV_Train_PerFold)):
+					TabStim_STD_DIV.append(NbStim_STD_DIV_Train_PerFold)
+				else:
+					TabStim_STD_DIV.append(Nb_STD_DIV_Train-cmpt)
+				cmpt = cmpt + NbStim_STD_DIV_Train_PerFold
+	
+			TabStim_DEV_FOC = []
+			cmpt = 0
+			for i_block in range((kFold-1)):
+				if (cmpt<(Nb_DEV_FOC_Train-NbStim_DEV_FOC_Train_PerFold)):
+					TabStim_DEV_FOC.append(NbStim_DEV_FOC_Train_PerFold)
+				else:
+					TabStim_DEV_FOC.append(Nb_DEV_FOC_Train-cmpt)
+				cmpt = cmpt + NbStim_DEV_FOC_Train_PerFold
+				
+			TabStim_DEV_DIV = []
+			cmpt = 0
+			for i_block in range((kFold-1)):
+				if (cmpt<(Nb_DEV_DIV_Train-NbStim_DEV_DIV_Train_PerFold)):
+					TabStim_DEV_DIV.append(NbStim_DEV_DIV_Train_PerFold)
+				else:
+					TabStim_DEV_DIV.append(Nb_DEV_DIV_Train-cmpt)
+				cmpt = cmpt + NbStim_DEV_DIV_Train_PerFold
+				
+				
+			#-----------------------------------
+			# Compute Feature Per Block
+			Feat_STD_FOC = pyABA_algorithms.Ave_Epochs_FeatComp(All_epochs_Train['STD/FOC'],   SF_STD, TabStim_STD_FOC,rejection_rate)
+			Feat_STD_DIV = pyABA_algorithms.Ave_Epochs_FeatComp(All_epochs_Train['STD/DIV'], SF_STD, TabStim_STD_DIV,rejection_rate)
+			
+			Feat_DEV_FOC = pyABA_algorithms.Ave_Epochs_FeatComp(All_epochs_Train['DEV/FOC'],   SF_STD, TabStim_DEV_FOC,rejection_rate)
+			Feat_DEV_DIV = pyABA_algorithms.Ave_Epochs_FeatComp(All_epochs_Train['DEV/DIV'], SF_STD, TabStim_DEV_DIV,rejection_rate)
+			
+			# Compute Naive Bayes Parameters
+			NB_Param_STD = pyABA_algorithms.NBlearn(Feat_STD_FOC, Feat_STD_DIV)
+			NB_Param_DEV = pyABA_algorithms.NBlearn(Feat_DEV_FOC, Feat_DEV_DIV)
+
+			
+			
+			# Compute Epoch for Test dataset
+			raw4Test =raw_eeg.copy()
+			
+			mapping = {Events_dict['STD/DIV']   : 'STD/DIV' , Events_dict['DEV/DIV']   : 'DEV/DIV' ,
+			           Events_dict['STD/FOC']   : 'STD/FOC' , Events_dict['DEV/FOC']   : 'DEV/FOC'}
+			annot_from_events = mne.annotations_from_events(
+			                                events=Event_Test, 
+			                                event_desc=mapping, 
+			                                sfreq=raw4Test.info['sfreq'],
+			                                orig_time=raw4Test.info['meas_date'],verbose='ERROR')
+			raw4Test = raw4Test.set_annotations(annot_from_events,verbose='ERROR')
+			
+			
+			
+			All_epochs_Test = mne.Epochs(
+			         raw4Test,
+			         tmin=tmin, tmax=tmax,  # From 0 to 1 second after epoch onset
+			         events=Event_Test, 
+			         event_id = event_id,
+			         preload=True,
+			         proj=False,    # No additional reference
+			         baseline=None, # No baseline
+					 verbose='ERROR')
+			
+			Feat_STD_FOC  = pyABA_algorithms.Ave_Epochs_FeatComp(All_epochs_Test['STD/FOC'],   SF_STD , [len(All_epochs_Test['STD/FOC'])],  0.0)
+			Feat_DEV_FOC  = pyABA_algorithms.Ave_Epochs_FeatComp(All_epochs_Test['DEV/FOC'],   SF_STD , [len(All_epochs_Test['DEV/FOC'])],  0.0)
+			Feat_STD_DIV  = pyABA_algorithms.Ave_Epochs_FeatComp(All_epochs_Test['STD/DIV'],   SF_STD , [len(All_epochs_Test['STD/DIV'])],  0.0)
+			Feat_DEV_DIV  = pyABA_algorithms.Ave_Epochs_FeatComp(All_epochs_Test['DEV/DIV'],   SF_STD , [len(All_epochs_Test['DEV/DIV'])],  0.0)
+
+
+	
+			Delta_STD_FOC = pyABA_algorithms.NBapply(NB_Param_STD, Feat_STD_FOC)
+			Delta_STD_DIV = pyABA_algorithms.NBapply(NB_Param_STD, Feat_STD_DIV)
+			Delta_DEV_FOC = pyABA_algorithms.NBapply(NB_Param_DEV, Feat_DEV_FOC)
+			Delta_DEV_DIV = pyABA_algorithms.NBapply(NB_Param_DEV, Feat_DEV_DIV)
+			
+			
+			SUM_DIV = Delta_STD_DIV + Delta_DEV_DIV
+			p_stds_and_devs_DIV[i_fold] = 1. / (1 + py_tools.expNoOverflow(- SUM_DIV))	
+
+			SUM_FOC = Delta_STD_FOC + Delta_DEV_FOC
+			p_stds_and_devs_FOC[i_fold] = 1. / (1 + py_tools.expNoOverflow(- SUM_FOC))				
+
+			
+		ACCURACY = (np.sum(p_stds_and_devs_DIV < .5)  + np.sum(p_stds_and_devs_FOC > .5) ) /(kFold*2)
+ 		
+		return ACCURACY 
+
 		
 		
 if __name__ == "__main__":	
@@ -893,6 +1228,11 @@ if __name__ == "__main__":
 		
 		# Read fif filname and convert in raw object
 		raw_ActPass = ActPass(FifFileName)
+		
+		
+		ACCURACY_FOCvsDIV = raw_ActPass.ComputeAccuracy_IGNvsFOC(20)
+		ACCURACY_StdvsDev_DIV = raw_ActPass.ComputeAccuracy_STDvsDEV('DIV',20)
+		ACCURACY_StdvsDev_FOC = raw_ActPass.ComputeAccuracy_STDvsDEV('FOC',20)
 # 		fig_StdDiv_EmergCompo = raw_ActPass.SignificativeComponante('STD/DIV',-0.2, 1.5, (-0.2,0),'g',0.75)
 # 		fig_StdFoc_EmergCompo = raw_ActPass.SignificativeComponante('STD/FOC',-0.2, 1.5, (-0.2,0),'r',0.75)
 # 		fig_DevDiv_EmergCompo = raw_ActPass.SignificativeComponante('DEV/DIV',-0.2, 1.5, (-0.2,0),'g',2)
@@ -909,11 +1249,11 @@ if __name__ == "__main__":
 # 		
 
 # 		fig_HR = raw_ActPass.HeartRate_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
-		fig_Pupill = raw_ActPass.PupilDiam_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
+# 		fig_Pupill = raw_ActPass.PupilDiam_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
 		
 		
-		RSP_RATE_Mean_Div,RSP_RATE_Std_Div, RSP_Amplitude_Mean_Div, RSP_Amplitude_Std_Div = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/DIV','DEV/DIV']) # DIV condition
-		RSP_RATE_Mean_Foc,RSP_RATE_Std_Foc, RSP_Amplitude_Mean_Foc, RSP_Amplitude_Std_Foc = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/FOC','DEV/FOC']) # FOC condition
+# 		RSP_RATE_Mean_Div,RSP_RATE_Std_Div, RSP_Amplitude_Mean_Div, RSP_Amplitude_Std_Div = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/DIV','DEV/DIV']) # DIV condition
+# 		RSP_RATE_Mean_Foc,RSP_RATE_Std_Foc, RSP_Amplitude_Mean_Foc, RSP_Amplitude_Std_Foc = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/FOC','DEV/FOC']) # FOC condition
 		
 		
 # 		if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):

@@ -83,7 +83,7 @@ class Rest:
 		raw_EOG.pick_channels(ch_names + ['EOGLef', 'EOGRig'])
 		raw = raw.pick_channels(ch_names, verbose='ERROR')
 		ica = mne_tools.FitIcaRaw(raw, ch_names, raw.info['nchan'])
-		ica, IcaWeightsVar2save, IcaScore2save = mne_tools.VirtualEog(raw_EOG, ica, [], matEvent, ['Fp1', 'Fp2'], ['EOGLef'], ['EOGRig'])
+		ica, IcaWeightsVar2save, IcaScore2save = mne_tools.VirtualEog(raw_EOG, ica, [],  ['Fp1', 'Fp2'], ['EOGLef'], ['EOGRig'],0.8)
 		reconst_raw = raw.copy()
 		ica.apply(reconst_raw)
 		reconst_raw.filter(0.5, 45)
