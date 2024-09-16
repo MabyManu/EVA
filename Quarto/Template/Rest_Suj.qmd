@@ -41,7 +41,7 @@ RootFolder =  os.path.split(RootAnalysisFolder)[0]
 
 RootDirectory_RAW = RootFolder + '/_data/FIF/'
 RootDirectory_Results = RootFolder + '/_results/'
-FifFileName = RootDirectory_RAW + "***SUJ***\***SUJ***_Rest.raw.fif"
+FifFileName = RootDirectory_RAW + "***SUJ***/***SUJ***_Rest.raw.fif"
 
 SUBJECT_NAME = os.path.split(os.path.split(FifFileName)[0])[1]
 FlagProcessAnalysis = os.path.isfile(FifFileName)
@@ -61,6 +61,14 @@ else:
 	print("  ****************         NO DATA          ****************")		
 ```
 
+# Compute the rate and amplitude of respiration.
+```{python}
+if FlagProcessAnalysis :
+	RSP_RATE_Mean,RSP_RATE_Std, RSP_Amplitude_Mean, RSP_Amplitude_Std = raw_Rest.RespirationAnalysis(raw_Rest.mne_raw,'Resp')
+	Results_Respi = {"RespiRate_Mean" : RSP_RATE_Mean,"RespiRate_Std" : RSP_RATE_Std,"RespiAmplitude_Mean" : RSP_Amplitude_Mean,"RespiAmplitude_Std" : RSP_Amplitude_Std}
+else:
+	print("  ****************         NO DATA          ****************")		
+```
 
 
 # Compute the spectral 
@@ -103,6 +111,12 @@ else:
 ```
 
 
+
+
+
+
+
+
 # Save results computed from gaze data in a *json file
 ```{python}
 if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
@@ -112,6 +126,8 @@ with open(SaveDataFilename, "w") as outfile:
 	   json.dump(json.dumps( {"PowerNorm" : PowerNorm}, cls=NumpyEncoder), outfile)
 py_tools.append_to_json_file(SaveDataFilename,json.dumps( {"PAC" : PAC_Chan}, cls=NumpyEncoder))
 py_tools.append_to_json_file(SaveDataFilename,json.dumps( {"SpecCaracteristic" : Results_Spec}, cls=NumpyEncoder))
+py_tools.append_to_json_file(SaveDataFilename,Results_Respi)
+
 	   
 ```
 

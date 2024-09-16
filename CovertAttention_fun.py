@@ -1601,6 +1601,72 @@ class CovertAttention:
 
 
 
+	def EOGSpectralAnalysis(self,raw,List_NameChan,FreqMin,FreqMax,DeltaF,EOG_Type):
+		raw_EOG = raw.copy()
+		raw_EOG.pick(List_NameChan)
+		if (EOG_Type=='Horiz'):
+			raw_EOG_data = raw_EOG._data[1,:]-raw_EOG._data[0,:]
+		else:
+			raw_EOG_data = (raw_EOG._data[1,:]+raw_EOG._data[0,:])/2
+		
+		Freqs_Band = np.arange(FreqMin,FreqMax,DeltaF)
+		
+		frequence_echantillonnage = raw_EOG.info['sfreq']
+		
+		Events, Events_dict = mne.events_from_annotations(raw_EOG,verbose='ERROR')
+		Events_dictStim = {}
+		for evt in  Events_dict.items():
+			EvtLabel_curr = list(evt)[0]
+			if ((EvtLabel_curr.find('Std')>=0) | (EvtLabel_curr.find('Dev')>=0)):
+				Events_dictStim.update({EvtLabel_curr : Events_dict[EvtLabel_curr]})
+				
+				
+		Events_stim,_ = mne.events_from_annotations(raw_EOG,event_id=Events_dictStim,verbose='ERROR')
+		ix_BegEndTrial = np.where(np.diff(Events_stim[:,0])>frequence_echantillonnage)[0]
+		ix_Begin = np.concatenate(([Events_stim[0,0]],Events_stim[ix_BegEndTrial-1,0]),axis=0)
+		ix_End = np.concatenate((Events_stim[ix_BegEndTrial,0],[Events_stim[-1,0]]),axis=0)
+		TrialsDuration = ix_End-ix_Begin
+		NbTrials = len(ix_Begin)
+		Spectre_EOG = np.zeros((NbTrials,len(Freqs_Band)))
+		for i_trial in range(NbTrials):
+			Sig_curr = raw_EOG_data[ix_Begin[i_trial]:ix_End[i_trial]]
+			# Calculer le spectre
+			freqs, spectre,_ = py_tools.calculer_spectre(Sig_curr, frequence_echantillonnage)
+			spline = CubicSpline(freqs, spectre) 
+			Spectre_EOG[i_trial,:] = spline(Freqs_Band)
+				
+
+		fm = FOOOF(min_peak_height=0.25,max_n_peaks=1)
+		freq_range = [0.1, 15]
+		figSpectEOG = plt.figure()
+		Results = dict()
+
+		fm.fit(Freqs_Band, np.nanmean(Spectre_EOG,axis=0), freq_range)
+		plot_annotated_model(fm, annotate_peaks=True, annotate_aperiodic=True, plt_log=False)
+		if (EOG_Type=='Horiz'):
+			plt.title('Horizontal EOG',fontsize = 9)
+		else:
+			plt.title('Vertical EOG',fontsize = 9)
+		plt.xlabel('Frequency (Hz)',fontsize=7)
+		plt.ylabel('Amplitude ',fontsize=7)
+		plt.tick_params(axis='x',labelsize=8)
+		plt.tick_params(axis='y',labelsize=8)
+		if (EOG_Type=='Horiz'):
+			EOG_name = "VerticalEOG"
+		else:
+			EOG_name = "HorizontalEOG"
+	
+		Results['ExponentCoeff_' + EOG_name]=fm.aperiodic_params_[1]
+		if len(fm.peak_params_)>0:
+			Results['PeaksFreq_'+ EOG_name] = fm.peak_params_[0][0]
+			Results['PeaksPow_'+ EOG_name] = fm.peak_params_[0][1]
+			Results['PeaksBandWidth_'+ EOG_name] = fm.peak_params_[0][2]
+		plt.gcf().suptitle("Spectra of Eye Movements")		
+
+		return figSpectEOG,Results
+
+
+
 
 if __name__ == "__main__":	
 	RootFolder =  os.path.split(RootAnalysisFolder)[0]
@@ -1628,6 +1694,11 @@ if __name__ == "__main__":
  			                  'Instruct/AttLeft'  : 9 , 'Instruct/AttRight' : 10}
 		
 		mne_rawHorizCovAtt = CovertAtt_Horiz.ReadFileandConvertEvent(FifFileName, DictEvent_Horiz)
+		
+		
+		figSpectVertiEOG,Results_SpectVertiEOG = CovertAtt_Horiz.EOGSpectralAnalysis(mne_rawHorizCovAtt,['Fp1','Fp2'],0.25,15,0.1,'Verti')
+		figSpectHorizEOG,Results_SpectHorizEOG = CovertAtt_Horiz.EOGSpectralAnalysis(mne_rawHorizCovAtt,['EOGLef','EOGRig'],0.25,15,0.1,'Horiz')
+
 
 		
 		Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,AttSide = CovertAtt_Horiz.SetGazeData(mne_rawHorizCovAtt)

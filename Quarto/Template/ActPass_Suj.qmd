@@ -21,6 +21,11 @@ plt.rcParams['figure.figsize']=(15,8)
 plt.rcParams["figure.dpi"] = 300.
 import sys
 sys.path.append(RootAnalysisFolder)
+
+from AddPyABA_Path import PyABA_path
+sys.path.append(PyABA_path)
+import gaze_tools,py_tools
+
 from ActPass_fun import ActPass
 ```
 
@@ -33,7 +38,7 @@ RootFolder =  os.path.split(RootAnalysisFolder)[0]
 
 RootDirectory_RAW = RootFolder + '/_data/FIF/'
 RootDirectory_Results = RootFolder + '/_results/'
-FifFileName = RootDirectory_RAW + "***SUJ***\***SUJ***_ActPass.raw.fif"
+FifFileName = RootDirectory_RAW +  "***SUJ***/***SUJ***_ActPass.raw.fif"
 
 SUBJECT_NAME = os.path.split(os.path.split(FifFileName)[0])[1]
 
@@ -124,6 +129,33 @@ else:
 	print(colored("NO FOC vs DIV EFFECT ", 'red'))
 
 ```	
+
+
+
+## Compute the accuracy to discriminate FOCused versu DIVerted condion
+```{python}
+ACCURACY_FOCvsDIV = raw_ActPass.ComputeAccuracy_IGNvsFOC(20)
+
+print("   *********** X-Validation with retrained Xdawn ")
+print("           Accuracy FOC vs DIV :  " ,  "{:.2f}".format(ACCURACY_FOCvsDIV))
+
+```
+
+
+## Compute the accuracy to discriminate STD  versus DEV  in 2 conditions FOC & DIV
+```{python}
+ACCURACY_StdvsDev_DIV = raw_ActPass.ComputeAccuracy_STDvsDEV('DIV',20)
+ACCURACY_StdvsDev_FOC = raw_ActPass.ComputeAccuracy_STDvsDEV('FOC',20)
+print("   *********** X-Validation with retrained Xdawn ")
+print("           Accuracy StdvsDev  FOC  :  " ,  "{:.2f}".format(ACCURACY_StdvsDev_FOC))
+print("           Accuracy StdvsDev  DIV  :  " ,  "{:.2f}".format(ACCURACY_StdvsDev_DIV))
+
+```
+		
+
+
+
+
 	
 	
 ## Compare Heart Rate under the DIVerted Attention and the FOCused Attention Conditions
@@ -137,14 +169,32 @@ fig_HR = raw_ActPass.HeartRate_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/D
 fig_Pupill = raw_ActPass.PupilDiam_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
 ```
 
+
+
+## Respiration analysis in DIV condition
+```{python}
+RSP_RATE_Mean_Div,RSP_RATE_Std_Div, RSP_Amplitude_Mean_Div, RSP_Amplitude_Std_Div = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/DIV','DEV/DIV']) # DIV condition
+```
+
+## Respiration analysis in FOC condition
+```{python}
+RSP_RATE_Mean_Foc,RSP_RATE_Std_Foc, RSP_Amplitude_Mean_Foc, RSP_Amplitude_Std_Foc = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/FOC','DEV/FOC']) # FOC condition
+```
+
+
 # Save results computed from gaze data in a *json file
 ```{python}
 if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
 	os.mkdir(RootDirectory_Results + SUBJECT_NAME)
 SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_ActPass.json"
-Results = {"CountEffect" :CountEffect_OK, "FocDivEffect" : FocDivEffect_OK}
+Results = {"ACCURACY_FOCvsDIV" : ACCURACY_FOCvsDIV, "ACCURACY_StdvsDev_DIV":ACCURACY_StdvsDev_DIV, "ACCURACY_StdvsDev_FOC" : ACCURACY_StdvsDev_FOC, "CountEffect" :CountEffect_OK, "FocDivEffect" : FocDivEffect_OK}
 
 with open(SaveDataFilename, "w") as outfile: 
 	   json.dump(Results, outfile)
+	   
+
+py_tools.append_to_json_file(SaveDataFilename, {'Resp_Rate_MEAN_Div':RSP_RATE_Mean_Div,'Resp_Rate_STD_Div':RSP_RATE_Std_Div,'Resp_Amp_MEAN_Div':RSP_Amplitude_Mean_Div,'Resp_Amp_STD_Div':RSP_Amplitude_Std_Div})	 
+py_tools.append_to_json_file(SaveDataFilename, {'Resp_Rate_MEAN_Foc':RSP_RATE_Mean_Foc,'Resp_Rate_STD_Foc':RSP_RATE_Std_Foc,'Resp_Amp_MEAN_Foc':RSP_Amplitude_Mean_Foc,'Resp_Amp_STD_Foc':RSP_Amplitude_Std_Foc})	 
+   
 	   
 ```

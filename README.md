@@ -19,6 +19,9 @@ You will need:
 - mne
 - json
 - scipy
+- fooof
+- tensorpac
+- neurokit2
 
 
 
