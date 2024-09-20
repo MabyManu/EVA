@@ -160,7 +160,7 @@ class SmoothPursuit:
 		
 		
 		
-	def DetectSaccades_andPlot(self,GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times):
+	def DetectSaccades_andPlot(self,Target_Traject,GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times):
 		
 		
 		fig_Gaze_LE = plt.figure()
@@ -170,10 +170,10 @@ class SmoothPursuit:
 		NbSaccades_LeftTOT=[]
 		AmpSaccLeftTOT=[]
 		for i_cycle in range(self.Nb_blocks):
-			Epoc_gazeLE_X = np.int64((GazeLE_X[i_cycle,:]/self.Pix2DegCoeff)+self.Cross_X)
-			Epoc_gazeLE_Y = np.int64((GazeLE_Y[i_cycle,:]/self.Pix2DegCoeff)+self.Cross_Y)
+			Epoc_gazeLE_X = np.round((GazeLE_X[i_cycle,:]/self.Pix2DegCoeff)+self.Cross_X)
+			Epoc_gazeLE_Y = np.round((GazeLE_Y[i_cycle,:]/self.Pix2DegCoeff)+self.Cross_Y)
 
-			Ssac_Left, EsacLeft = detectors.saccade_detection(Epoc_gazeLE_X, Epoc_gazeLE_Y, np.int64(Times*self.SampFreq), minlen = 5,  maxvel=1000)
+			Ssac_Left, EsacLeft = detectors.saccade_detection(Epoc_gazeLE_X, Epoc_gazeLE_Y, np.round(Times*self.SampFreq), minlen = 5,  maxvel=1000)
 			
 			# Keep Saccades with minimum Amplitude
 			AmpSaccLeft = np.zeros(len(EsacLeft))
@@ -216,10 +216,10 @@ class SmoothPursuit:
 		AmpSaccRightTOT = []
 
 		for i_cycle in range(self.Nb_blocks):
-			Epoc_gazeRE_X = np.int64((GazeRE_X[i_cycle,:]/self.Pix2DegCoeff)+self.Cross_X)
-			Epoc_gazeRE_Y = np.int64((GazeRE_Y[i_cycle,:]/self.Pix2DegCoeff)+self.Cross_Y)
+			Epoc_gazeRE_X = np.round((GazeRE_X[i_cycle,:]/self.Pix2DegCoeff)+self.Cross_X)
+			Epoc_gazeRE_Y = np.round((GazeRE_Y[i_cycle,:]/self.Pix2DegCoeff)+self.Cross_Y)
 
-			Ssac_Right, EsacRight = detectors.saccade_detection(Epoc_gazeRE_X, Epoc_gazeRE_Y, np.int64(Times*self.SampFreq), minlen = 5,  maxvel=1000)
+			Ssac_Right, EsacRight = detectors.saccade_detection(Epoc_gazeRE_X, Epoc_gazeRE_Y, np.round(Times*self.SampFreq), minlen = 5,  maxvel=1000)
 			
 			# Keep Saccades with minimum Amplitude
 			AmpSaccRight = np.zeros(len(EsacRight))
@@ -288,8 +288,8 @@ class SmoothPursuit:
 			NbSaccades_Right = len(EsacRight[i_cycle])
 			
 			for i_sacc in range(NbSaccades_Left):
-				ixbegin = EsacLeft[i_cycle][i_sacc][0]
-				ixend = EsacLeft[i_cycle][i_sacc][1]
+				ixbegin = np.int32(EsacLeft[i_cycle][i_sacc][0])
+				ixend = np.int32(EsacLeft[i_cycle][i_sacc][1])
 				
 				if (ixbegin-3)<0:
 					ixbegin = 0
@@ -309,8 +309,8 @@ class SmoothPursuit:
 			
 			
 			for i_sacc in range(NbSaccades_Right):
-				ixbegin = EsacRight[i_cycle][i_sacc][0]
-				ixend = EsacRight[i_cycle][i_sacc][1]
+				ixbegin = np.int32(EsacRight[i_cycle][i_sacc][0])
+				ixend = np.int32(EsacRight[i_cycle][i_sacc][1])
 				
 				
 				if (ixbegin-3)<0:
@@ -367,17 +367,17 @@ class SmoothPursuit:
 			Traject_pos_resamp_Left_NoSacc = Target_Traject.copy()
 			Data_Gaze_LeftEye_X_NoSacc = GazeLE_X[i_block].copy()
 			for i_sacc_Left in range(NbSaccades_Left):
-				ixbeg = EsacLeft[i_block][i_sacc_Left][0] - 3  if (EsacLeft[i_block][i_sacc_Left][0] - 3 >=0) else 0
-				ixend = EsacLeft[i_block][i_sacc_Left][1] + 3  if (EsacLeft[i_block][i_sacc_Left][1] + 3 <len(Target_Traject)) else (len(Target_Traject)-1)
+				ixbeg = np.int32(EsacLeft[i_block][i_sacc_Left][0]) - 3  if (np.int32(EsacLeft[i_block][i_sacc_Left][0]) - 3 >=0) else 0
+				ixend = np.int32(EsacLeft[i_block][i_sacc_Left][1]) + 3  if (np.int32(EsacLeft[i_block][i_sacc_Left][1]) + 3 <len(Target_Traject)) else (len(Target_Traject)-1)
 				
 				Traject_pos_resamp_Left_NoSacc[ixbeg:ixend]=np.NaN
 				Data_Gaze_LeftEye_X_NoSacc[ixbeg:ixend]=np.NaN
 			
 			Traject_pos_resamp_Right_NoSacc = Target_Traject.copy()
-			Data_Gaze_RightEye_X_NoSacc = GazeRE_X.copy()
+			Data_Gaze_RightEye_X_NoSacc = GazeRE_X[i_block].copy()
 			for i_sacc_Right in range(NbSaccades_Right):
-				ixbeg = EsacRight[i_block][i_sacc_Right][0] - 3  if (EsacRight[i_block][i_sacc_Right][0] - 3 >=0) else 0
-				ixend = EsacRight[i_block][i_sacc_Right][1] + 3  if (EsacRight[i_block][i_sacc_Right][1] + 3 <len(Target_Traject)) else (len(Target_Traject)-1)
+				ixbeg = np.int32(EsacRight[i_block][i_sacc_Right][0]) - 3  if (np.int32(EsacRight[i_block][i_sacc_Right][0]) - 3 >=0) else 0
+				ixend = np.int32(EsacRight[i_block][i_sacc_Right][1]) + 3  if (np.int32(EsacRight[i_block][i_sacc_Right][1]) + 3 <len(Target_Traject)) else (len(Target_Traject)-1)
 				Traject_pos_resamp_Right_NoSacc[ixbeg:ixend]=np.NaN
 				Data_Gaze_RightEye_X_NoSacc[ixbeg:ixend]=np.NaN
 			
@@ -397,8 +397,8 @@ class SmoothPursuit:
 		
 		
 			# Total proportion of smooth pursuit		
-			Propo_SmootPurs_Left = np.nanmean(Data_Gaze_LeftEye_X_NoSacc/Traject_pos_resamp_Left_NoSacc)
-			Propo_SmootPurs_Right = np.nanmean(Data_Gaze_RightEye_X_NoSacc/Traject_pos_resamp_Right_NoSacc)
+# 			Propo_SmootPurs_Left = np.nanmean(Data_Gaze_LeftEye_X_NoSacc/Traject_pos_resamp_Left_NoSacc)
+# 			Propo_SmootPurs_Right = np.nanmean(Data_Gaze_RightEye_X_NoSacc/Traject_pos_resamp_Right_NoSacc)
 		
 		
 			Velocity_LeftTOT.append(np.nanmedian(Velocity_Left[i_block]))
@@ -416,13 +416,13 @@ class SmoothPursuit:
 		return Results
 	
 	def EOGAnalysis(self,raw):
-		
-		LowFreq_EOG = 10
+		LowFreq_EOG = 0.2
+		HighFreq_EOG = 20
 		self.SampFreq = raw.info['sfreq']
 
 		# Create Horizontal EOG from 2 channels situated close to left and right eyes
 		raw_filt_EOG_Vert = raw.copy()
-		raw_filt_EOG_Vert.filter(0.5,LowFreq_EOG,picks=self.ListEOGVert,verbose='ERROR')
+		raw_filt_EOG_Vert.filter(LowFreq_EOG,HighFreq_EOG,picks=self.ListEOGVert + self.ListEOGHoriz,verbose='ERROR')
 		raw_filt_EOG_Vert.pick(self.ListEOGVert)
 		
 		lat_BegPursuit = raw_filt_EOG_Vert.annotations.onset[3]
@@ -491,7 +491,6 @@ class SmoothPursuit:
 		plt.suptitle('Vertical EOG')
 		
 		
-				
 		raw_eeg_horiz = raw.copy()
 		raw_eeg_horiz.pick(picks=['eeg','eog'])
 		raw_eeg_horiz.drop_channels('EOGLow')			
@@ -500,9 +499,22 @@ class SmoothPursuit:
 		ica, IcaWeightsVar2save, IcaScore2save = mne_tools.VirtualEog(raw_eeg_horiz, ica, [], ['Fp1', 'Fp2'], None, None,0.8)
 		raw_filt_EOG_Horiz = raw_eeg_horiz.copy()
 		ica.apply(raw_filt_EOG_Horiz)				
-		raw_filt_EOG_Horiz.filter(None,LowFreq_EOG,picks=self.ListEOGHoriz,verbose='ERROR')
+		raw_filt_EOG_Horiz.filter(LowFreq_EOG,HighFreq_EOG,picks=self.ListEOGHoriz,verbose='ERROR')
 		raw_filt_EOG_Horiz.pick(self.ListEOGHoriz)	
 		
+		
+# 		raw_filt_EOG_Horiz = raw.copy()
+# 		raw_filt_EOG_Horiz.filter(LowFreq_EOG,HighFreq_EOG,picks=self.ListEOGHoriz + self.ListEOGVert,verbose='ERROR')		
+# 		raw_filt_EOG_Horiz,_,_ = mne_tools.AddVirtualEogChannels(raw_filt_EOG_Horiz,['Fp1', 'Fp2'],['EOGRig'],['EOGLef'])
+
+# 		raw_filt_EOG_Horiz.pick(picks=['eog'])
+# 		
+# 		raw_filt_EOG_Horiz._data[1,:] = py_tools.supprimer_artefacts_par_projection(raw_filt_EOG_Horiz._data[1,:],raw_filt_EOG_Horiz._data[3,:])
+# 		raw_filt_EOG_Horiz._data[2,:] = py_tools.supprimer_artefacts_par_projection(raw_filt_EOG_Horiz._data[2,:],raw_filt_EOG_Horiz._data[3,:])
+# 		raw_filt_EOG_Horiz._data[4,:] = py_tools.supprimer_artefacts_par_projection(raw_filt_EOG_Horiz._data[4,:],raw_filt_EOG_Horiz._data[3,:])
+# 		
+# 		raw_filt_EOG_Horiz.pick(self.ListEOGHoriz+['HEOG'])	
+
 		
 
 		# EventLabel
@@ -538,6 +550,9 @@ class SmoothPursuit:
 				 verbose = 'ERROR'
 	 	 )
 		
+		
+
+		
 		# Define theorical trajectory		
 		Lat_RightExcentricity = self.TimeWinCycle*0.25
 		Lat_LeftExcentricity = self.TimeWinCycle*0.75
@@ -565,7 +580,7 @@ class SmoothPursuit:
 		RMSE_EOG=[]
 		
 		for i_block in range(Nb_blocks):
-			EOG_curr= epochs_CyclesEOG_Horiz.get_data(copy=True)[i_block,1,:] - epochs_CyclesEOG_Horiz.get_data(copy=True)[i_block,0,:]
+			EOG_curr=  epochs_CyclesEOG_Horiz.get_data(copy=True)[i_block,1,:]-epochs_CyclesEOG_Horiz.get_data(copy=True)[i_block,0,:]
 			EOG_curr = detrend(EOG_curr,type='constant')
 			EOG_curr = EOG_curr/np.max(np.abs(EOG_curr))
 			
@@ -574,7 +589,7 @@ class SmoothPursuit:
 			ax_EOGHoriz[i_block].set_xlabel('Times (s)')
 			ax_EOGHoriz[i_block].set_ylabel('Amplitude (µV)')
 			
-			ax_EOGHoriz[i_block].plot(Times_curr,Traject_pos_resamp,'c',linestyle ='dotted')
+			ax_EOGHoriz[i_block].plot(Times_curr,Traject_pos_resamp,'r',linestyle ='dotted')
 			
 			
 			# Root Mean Square Error
@@ -665,7 +680,7 @@ if __name__ == "__main__":
 		raw_SmoothPurs.Plot_SmootPurs_Traject(Target_Traject,GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times)
 		
 		
-		EsacLeft,NbSaccades_Left,EsacRight,NbSaccades_Right,AmpSaccLeft,AmpSaccRight = raw_SmoothPurs.DetectSaccades_andPlot(GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times)
+		EsacLeft,NbSaccades_Left,EsacRight,NbSaccades_Right,AmpSaccLeft,AmpSaccRight = raw_SmoothPurs.DetectSaccades_andPlot(Target_Traject,GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times)
 		
 		
 		

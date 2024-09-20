@@ -12,6 +12,7 @@ jupyter: python3
 import os 
 import glob
 RootAnalysisFolder = os.path.split(os.path.split(os.getcwd())[0])[0]
+import pandas as pd
 
 import mne
 import json
@@ -68,11 +69,14 @@ else:
 
 # Save results computed from gaze data in a *json file
 ```{python}
-if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
-	os.mkdir(RootDirectory_Results + SUBJECT_NAME)
-SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_ClapBlink.json"
-
-with open(SaveDataFilename, "w") as outfile: 
-	   json.dump(json.dumps( {"NbBlinkPerBlock" : NbBlinkPerBlock}, cls=NumpyEncoder), outfile)
+if FlagProcessAnalysis :
+	if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
+		os.mkdir(RootDirectory_Results + SUBJECT_NAME)
+		
+	SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_ClapBlink.json"
+	ClapBlink_Data = pd.DataFrame({'NbBlinkPerBlock': pd.Series({'Values': NbBlinkPerBlock})})
+	ClapBlink_Data.to_json(SaveDataFilename)
+else:
+	print("  ****************         NO DATA          ****************")		
 	   
 ```

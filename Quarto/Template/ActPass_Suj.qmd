@@ -187,7 +187,7 @@ RSP_RATE_Mean_Foc,RSP_RATE_Std_Foc, RSP_Amplitude_Mean_Foc, RSP_Amplitude_Std_Fo
 if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
 	os.mkdir(RootDirectory_Results + SUBJECT_NAME)
 SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_ActPass.json"
-Results = {"ACCURACY_FOCvsDIV" : ACCURACY_FOCvsDIV, "ACCURACY_StdvsDev_DIV":ACCURACY_StdvsDev_DIV, "ACCURACY_StdvsDev_FOC" : ACCURACY_StdvsDev_FOC, "CountEffect" :CountEffect_OK, "FocDivEffect" : FocDivEffect_OK}
+Results = {"ACCURACY_FOCvsDIV" : ACCURACY_FOCvsDIV, "ACCURACY_StdvsDev_DIV":ACCURACY_StdvsDev_DIV, "ACCURACY_StdvsDev_FOC" : ACCURACY_StdvsDev_FOC, "CountEffect" : int(CountEffect_OK), "FocDivEffect" : int(FocDivEffect_OK)}
 
 with open(SaveDataFilename, "w") as outfile: 
 	   json.dump(Results, outfile)

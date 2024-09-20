@@ -27,6 +27,7 @@ from mne.channels import combine_channels
 
 import pandas as pd
 from pandas import DataFrame
+import json
 
 import seaborn as sns 
 
@@ -94,6 +95,7 @@ class Iannetti:
 		
 	
 	def Plot_BlinkReflex(self,EOG_Label):
+		SignificativeBlinkReflex = False
 		raw_Near_filt = self.raw_Near.copy()
 		raw_Near_filt.filter(self.Freq_HighPass,None,picks = EOG_Label,verbose='ERROR')	
 		raw_Near_filt.pick(EOG_Label)
@@ -163,10 +165,11 @@ class Iannetti:
 		                             threshold=f_thresh, tail=tail, n_jobs=3,
 		                             out_type='mask')
 		for i_cluster in range(len(cluster_p_values)):
-		    if (cluster_p_values[i_cluster]<p_accept):
-		        Clust_curr = clusters[i_cluster][0]
-		        ax1['C'].axvspan(Epochs_Near.times[Clust_curr.start]*1000, Epochs_Near.times[Clust_curr.stop-1]*1000,facecolor="crimson",alpha=0.3)
-
+			if (cluster_p_values[i_cluster]<p_accept):
+				Clust_curr = clusters[i_cluster][0]
+				ax1['C'].axvspan(Epochs_Near.times[Clust_curr.start]*1000, Epochs_Near.times[Clust_curr.stop-1]*1000,facecolor="crimson",alpha=0.3)
+				SignificativeBlinkReflex = True
+		
 		ax1['C'].plot(Epochs_Near.times*1000,np.mean(Data_Near[:,:,0],axis=0),'r',linewidth=2)
 		ax1['C'].plot(Epochs_Far.times*1000,np.mean(Data_Far[:,:,0],axis=0),'b',linewidth=2)
 		ax1['C'].set_xlabel('Time (ms)')
@@ -196,6 +199,7 @@ class Iannetti:
 		fig1.colorbar(imshowobj, ax=ax1['B'],label = 'Amplitude (µV)')
 
 		fig1.suptitle(EOG_Label)
+		return SignificativeBlinkReflex
 			
 		
 		
@@ -217,5 +221,15 @@ if __name__ == "__main__":
 		
 		# Read fif filname and convert in raw object
 		Iannetti_raw = Iannetti(FifFileName)
-		Iannetti_raw.Plot_BlinkReflex('EOGLef')
-		Iannetti_raw.Plot_BlinkReflex('EOGRig')
+		SignificativeBlinkReflex_EOGLeft = Iannetti_raw.Plot_BlinkReflex('EOGLef')
+		SignificativeBlinkReflex_EOGRight = Iannetti_raw.Plot_BlinkReflex('EOGRig')
+		
+		if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
+			os.mkdir(RootDirectory_Results + SUBJECT_NAME)
+		SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_Iannetti.json"
+		Results = {"SignificativeBlinkReflex_EOGLeft" : int(SignificativeBlinkReflex_EOGLeft), "SignificativeBlinkReflex_EOGRight" : int(SignificativeBlinkReflex_EOGRight)}
+		
+		with open(SaveDataFilename, "w") as outfile: 
+			   json.dump(Results, outfile)
+		
+		
