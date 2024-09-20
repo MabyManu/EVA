@@ -155,12 +155,14 @@ class Rest:
 	def PhaseAmplitudeCoupling(self,Epochs,SlowBand,FastBand):
 		p = Pac(idpac=(4, 0, 0), f_pha=SlowBand, f_amp=FastBand)
 		nbChan = Epochs.info['nchan']
-		PAC_Chan = np.zeros(nbChan)
+# 		PAC_Chan = np.zeros(nbChan)
+		PAC_Chan = {}
 		for i_chan in range(nbChan):
 			data = Epochs.get_data(copy=True)[:, i_chan, :]
 			# Filter the data and extract pac
 			xpac = p.filterfit(Epochs.info['sfreq'], data)
-			PAC_Chan[i_chan] = np.mean(xpac)
+			PAC_Chan[Epochs.info['ch_names'][i_chan]] = np.mean(xpac)
+# 			PAC_Chan[i_chan] = np.mean(xpac)
 			
 		return PAC_Chan
 	
@@ -256,6 +258,7 @@ if __name__ == "__main__":
 		
 		
 		RSP_RATE_Mean,RSP_RATE_Std, RSP_Amplitude_Mean, RSP_Amplitude_Std = raw_Rest.RespirationAnalysis(raw_Rest.mne_raw,'Resp')
+		Results_Respi = {"RespiRate_Mean" : RSP_RATE_Mean,"RespiRate_Std" : RSP_RATE_Std,"RespiAmplitude_Mean" : RSP_Amplitude_Mean,"RespiAmplitude_Std" : RSP_Amplitude_Std}
 
 		
 		
@@ -275,16 +278,24 @@ if __name__ == "__main__":
 		Results_Spec = raw_Rest.SpectralCaracteristics(psd_Epochs)
 		
 		
-		if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
- 			os.mkdir(RootDirectory_Results + SUBJECT_NAME)
-		SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_Rest.json"
-		with open(SaveDataFilename, "w") as outfile: 
-			   json.dump(json.dumps( {"PowerNorm" : PowerNorm}, cls=NumpyEncoder), outfile)
-		py_tools.append_to_json_file(SaveDataFilename,json.dumps( {"PAC" : PAC_Chan}, cls=NumpyEncoder))
-		py_tools.append_to_json_file(SaveDataFilename,json.dumps( {"SpecCaracteristic" : Results_Spec}, cls=NumpyEncoder))
 		
-		Results_Respi = {"RespiRate_Mean" : RSP_RATE_Mean,"RespiRate_Std" : RSP_RATE_Std,"RespiAmplitude_Mean" : RSP_Amplitude_Mean,"RespiAmplitude_Std" : RSP_Amplitude_Std}
+		if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
+			os.mkdir(RootDirectory_Results + SUBJECT_NAME)
+		
+		SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_Rest.json"
 
-		py_tools.append_to_json_file(SaveDataFilename,Results_Respi)
+
+
+		ResultDic= {}
+		ResultDic['PowerNorm'] = {'delta':list(PowerNorm['delta']),
+													'theta':list(PowerNorm['theta']),
+													'alpha':list(PowerNorm['alpha']),
+													'beta' :list(PowerNorm['beta']),
+													'gamma' :list(PowerNorm['gamma'])}
+		ResultDic['PhaseAmplitudeCoupling']		 = 		PAC_Chan	
+		ResultDic['SpecCaracteristic']		 = 		Results_Spec
+		ResultDic['Respiration']		 = 		Results_Respi
+		py_tools.sauvegarder_dictionnaires(ResultDic, SaveDataFilename)   	
+
 
 

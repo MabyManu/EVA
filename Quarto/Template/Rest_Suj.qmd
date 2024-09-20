@@ -122,11 +122,30 @@ else:
 if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
 	os.mkdir(RootDirectory_Results + SUBJECT_NAME)
 SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_Rest.json"
-with open(SaveDataFilename, "w") as outfile: 
-	   json.dump(json.dumps( {"PowerNorm" : PowerNorm}, cls=NumpyEncoder), outfile)
-py_tools.append_to_json_file(SaveDataFilename,json.dumps( {"PAC" : PAC_Chan}, cls=NumpyEncoder))
-py_tools.append_to_json_file(SaveDataFilename,json.dumps( {"SpecCaracteristic" : Results_Spec}, cls=NumpyEncoder))
-py_tools.append_to_json_file(SaveDataFilename,Results_Respi)
+
+
+
+ResultDic= {}
+ResultDic['PowerNorm'] = {'delta':list(PowerNorm['delta']),
+											'theta':list(PowerNorm['theta']),
+											'alpha':list(PowerNorm['alpha']),
+											'beta' :list(PowerNorm['beta']),
+											'gamma' :list(PowerNorm['gamma'])}
+											
+											
+ResultDic['PhaseAmplitudeCoupling']		 = 		PAC_Chan					
+											
+								
+ResultDic['SpecCaracteristic']		 = 		Results_Spec
+
+ResultDic['Respiration']		 = 		Results_Respi
+
+							
+								
+								
+py_tools.sauvegarder_dictionnaires(ResultDic, SaveDataFilename)   	
+											
+
 
 	   
 ```

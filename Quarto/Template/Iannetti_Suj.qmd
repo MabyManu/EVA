@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 plt.rcParams['figure.figsize']=(15,8)
 plt.rcParams["figure.dpi"] = 300.
 import sys
+import json
 sys.path.append(RootAnalysisFolder)
 from Iannetti_fun import Iannetti
 ```
@@ -54,7 +55,7 @@ else:
 ```{python}
 
 if FlagProcessAnalysis :
-	Iannetti_raw.Plot_BlinkReflex('EOGLef')
+	SignificativeBlinkReflex_EOGLeft = Iannetti_raw.Plot_BlinkReflex('EOGLef')
 else:
 	print("  ****************         NO DATA          ****************")		
 ```
@@ -65,7 +66,20 @@ else:
 ```{python}
 
 if FlagProcessAnalysis :
-	Iannetti_raw.Plot_BlinkReflex('EOGRig')
+	SignificativeBlinkReflex_EOGRight = Iannetti_raw.Plot_BlinkReflex('EOGRig')
+else:
+	print("  ****************         NO DATA          ****************")		
+```
+
+```{python}
+if FlagProcessAnalysis :
+	if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
+		os.mkdir(RootDirectory_Results + SUBJECT_NAME)
+	SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_Iannetti.json"
+	Results = {"SignificativeBlinkReflex_EOGLeft" : int(SignificativeBlinkReflex_EOGLeft), "SignificativeBlinkReflex_EOGRight" : int(SignificativeBlinkReflex_EOGRight)}
+	
+	with open(SaveDataFilename, "w") as outfile:
+		json.dump(Results, outfile)
 else:
 	print("  ****************         NO DATA          ****************")		
 ```

@@ -653,6 +653,8 @@ class ActPass:
 		raw_Pupil = self.mne_raw.copy()
 		raw_Pupil.pick(['PupDi_LEye', 'PupDi_REye'])
 		
+		
+		
 		raw_Gaze = self.mne_raw.copy()
 		SampFreq = raw_Gaze.info['sfreq']
 		raw_Gaze.pick(['Gaze_LEye_X','Gaze_LEye_Y'])
@@ -744,7 +746,9 @@ class ActPass:
 				Epoch2remove.append(i_epoch)
 				
 		Epochs_DiamPupil.drop(Epoch2remove,verbose=False)
-			
+		figPupil = plt.figure()	
+		PupilDiam_Cond1_epochData_raw = []
+		PupilDiam_Cond2_epochData_raw = []
 		
 		del raw_Pupil
 		with warnings.catch_warnings():
@@ -774,66 +778,74 @@ class ActPass:
 				 ix = ix + 1
 
 			
+		FlagCond1 = False
+		FlagCond2 = False
 		
-		
-		PupilDiam_Cond1_epochData = py_tools.AutoReject(PupilDiam_Cond1_epochData_raw,10)
-		PupilDiam_Cond2_epochData = py_tools.AutoReject(PupilDiam_Cond2_epochData_raw,10)
-		
-		
-		Evo_pupil_Cond1 = np.squeeze(np.nanmean(PupilDiam_Cond1_epochData,axis=0))
-		Evo_pupil_Cond2 = np.squeeze(np.nanmean(PupilDiam_Cond2_epochData,axis=0))
-		
-		minval = np.min([np.min(Evo_pupil_Cond1),np.min(Evo_pupil_Cond2)])
-		maxval = np.max([np.max(Evo_pupil_Cond1),np.max(Evo_pupil_Cond2)])
-		
-		std_Cond1 = np.squeeze(np.nanstd(Epochs_DiamPupil[Cond1].get_data(copy=True),axis=0))
-		std_Cond2 = np.squeeze(np.nanstd(Epochs_DiamPupil[Cond2].get_data(copy=True),axis=0))
-		
-		X = [ PupilDiam_Cond1_epochData,PupilDiam_Cond2_epochData]
-		
-		n_conditions = 2
-		n_replications = (X[0].shape[0])  // n_conditions
-		factor_levels = [2]      #[2, 2]  # number of levels in each factor
-		effects = 'A'
-		pthresh = 0.05  # set threshold rather high to save some time
-		f_thresh = f_threshold_mway_rm(n_replications,factor_levels,effects,pthresh)
-		del n_conditions, n_replications, factor_levels, effects, pthresh
-		tail = 1  # f-test, so tail > 0
-		threshold = f_thresh
-		
-		T_obs, clusters, cluster_p_values, H0 = permutation_cluster_test([X[0], X[1]], n_permutations=20000,
-		                           threshold=threshold, tail=tail, n_jobs=3,
-		                           out_type='mask',verbose = 'ERROR')
-		
-		
-		
-		
-		figPupil = plt.figure()
-		plt.plot(Epochs_DiamPupil.times, Evo_pupil_Cond1,"r",linewidth=3)
-		plt.plot(Epochs_DiamPupil.times, Evo_pupil_Cond2,"k",linewidth=3)
-		plt.ylim((minval-np.max([np.nanmax(std_Cond1),np.nanmax(std_Cond2)]),maxval+np.max([np.nanmax(std_Cond1),np.nanmax(std_Cond2)])))
+		if (len(PupilDiam_Cond1_epochData_raw)>0):
+			PupilDiam_Cond1_epochData = py_tools.AutoReject(PupilDiam_Cond1_epochData_raw,10)
+			FlagCond1 = True
+		if (len(PupilDiam_Cond2_epochData_raw)>0):
+			PupilDiam_Cond2_epochData = py_tools.AutoReject(PupilDiam_Cond2_epochData_raw,10)
+			FlagCond2 = True
 
-		plt.legend([Cond1,Cond2])
-		plt.xlabel('Times (s)')
-		plt.ylabel('Diameter (mm)')
-		plt.title('Pupil Diameter  ActPass')
-		
-		
-
-		
-# 		plt.fill_between(Epochs_DiamPupil.times, np.squeeze(Evo_pupil_Cond1)-std_Cond1,np.squeeze(Evo_pupil_Cond1)+std_Cond1,color='r',alpha=0.2)
-# 		plt.fill_between(Epochs_DiamPupil.times, np.squeeze(Evo_pupil_Cond2)-std_Cond2,np.squeeze(Evo_pupil_Cond2)+std_Cond2,color='k',alpha=0.2)
-		
-		p_accept = 0.05
-		for i_cluster in range(len(cluster_p_values)):
-			if (cluster_p_values[i_cluster]<p_accept):
-				Clust_curr_start = clusters[i_cluster][0].start
-				Clust_curr_stop = clusters[i_cluster][0].stop-1
-				figPupil.get_axes()[0].axvspan(Epochs_DiamPupil.times[Clust_curr_start], Epochs_DiamPupil.times[Clust_curr_stop],facecolor="m",alpha=0.25)	
-				plt.text(Epochs_DiamPupil.times[Clust_curr_start],minval-(0.95*np.max([np.max(std_Cond1),np.max(std_Cond2)])),'p : '+ str(cluster_p_values[i_cluster]))
-		
-		
 			
+		if (FlagCond1 & FlagCond2):
+			Evo_pupil_Cond1 = np.squeeze(np.nanmean(PupilDiam_Cond1_epochData,axis=0))
+			Evo_pupil_Cond2 = np.squeeze(np.nanmean(PupilDiam_Cond2_epochData,axis=0))
+			
+			minval = np.min([np.min(Evo_pupil_Cond1),np.min(Evo_pupil_Cond2)])
+			maxval = np.max([np.max(Evo_pupil_Cond1),np.max(Evo_pupil_Cond2)])
+			
+			std_Cond1 = np.squeeze(np.nanstd(Epochs_DiamPupil[Cond1].get_data(copy=True),axis=0))
+			std_Cond2 = np.squeeze(np.nanstd(Epochs_DiamPupil[Cond2].get_data(copy=True),axis=0))
+			
+			X = [ PupilDiam_Cond1_epochData,PupilDiam_Cond2_epochData]
+			
+			n_conditions = 2
+			n_replications = (X[0].shape[0])  // n_conditions
+			factor_levels = [2]      #[2, 2]  # number of levels in each factor
+			effects = 'A'
+			pthresh = 0.05  # set threshold rather high to save some time
+			f_thresh = f_threshold_mway_rm(n_replications,factor_levels,effects,pthresh)
+			del n_conditions, n_replications, factor_levels, effects, pthresh
+			tail = 1  # f-test, so tail > 0
+			threshold = f_thresh
+			
+			T_obs, clusters, cluster_p_values, H0 = permutation_cluster_test([X[0], X[1]], n_permutations=20000,
+			                           threshold=threshold, tail=tail, n_jobs=3,
+			                           out_type='mask',verbose = 'ERROR')
+			
+			
+			
+			
+			
+			plt.plot(Epochs_DiamPupil.times, Evo_pupil_Cond1,"r",linewidth=3)
+			plt.plot(Epochs_DiamPupil.times, Evo_pupil_Cond2,"k",linewidth=3)
+			plt.ylim((minval-np.max([np.nanmax(std_Cond1),np.nanmax(std_Cond2)]),maxval+np.max([np.nanmax(std_Cond1),np.nanmax(std_Cond2)])))
+	
+			plt.legend([Cond1,Cond2])
+			plt.xlabel('Times (s)')
+			plt.ylabel('Diameter (mm)')
+			plt.title('Pupil Diameter  ActPass')
+			
+			
+	
+			
+	# 		plt.fill_between(Epochs_DiamPupil.times, np.squeeze(Evo_pupil_Cond1)-std_Cond1,np.squeeze(Evo_pupil_Cond1)+std_Cond1,color='r',alpha=0.2)
+	# 		plt.fill_between(Epochs_DiamPupil.times, np.squeeze(Evo_pupil_Cond2)-std_Cond2,np.squeeze(Evo_pupil_Cond2)+std_Cond2,color='k',alpha=0.2)
+			
+			p_accept = 0.05
+			for i_cluster in range(len(cluster_p_values)):
+				if (cluster_p_values[i_cluster]<p_accept):
+					Clust_curr_start = clusters[i_cluster][0].start
+					Clust_curr_stop = clusters[i_cluster][0].stop-1
+					figPupil.get_axes()[0].axvspan(Epochs_DiamPupil.times[Clust_curr_start], Epochs_DiamPupil.times[Clust_curr_stop],facecolor="m",alpha=0.25)	
+					plt.text(Epochs_DiamPupil.times[Clust_curr_start],minval-(0.95*np.max([np.max(std_Cond1),np.max(std_Cond2)])),'p : '+ str(cluster_p_values[i_cluster]))
+			
+		else:
+			plt.title('NO DATA')
+		
+				
 		plt.show()
 		return figPupil
 	
@@ -1230,9 +1242,9 @@ if __name__ == "__main__":
 		raw_ActPass = ActPass(FifFileName)
 		
 		
-		ACCURACY_FOCvsDIV = raw_ActPass.ComputeAccuracy_IGNvsFOC(20)
-		ACCURACY_StdvsDev_DIV = raw_ActPass.ComputeAccuracy_STDvsDEV('DIV',20)
-		ACCURACY_StdvsDev_FOC = raw_ActPass.ComputeAccuracy_STDvsDEV('FOC',20)
+# 		ACCURACY_FOCvsDIV = raw_ActPass.ComputeAccuracy_IGNvsFOC(20)
+# 		ACCURACY_StdvsDev_DIV = raw_ActPass.ComputeAccuracy_STDvsDEV('DIV',20)
+# 		ACCURACY_StdvsDev_FOC = raw_ActPass.ComputeAccuracy_STDvsDEV('FOC',20)
 # 		fig_StdDiv_EmergCompo = raw_ActPass.SignificativeComponante('STD/DIV',-0.2, 1.5, (-0.2,0),'g',0.75)
 # 		fig_StdFoc_EmergCompo = raw_ActPass.SignificativeComponante('STD/FOC',-0.2, 1.5, (-0.2,0),'r',0.75)
 # 		fig_DevDiv_EmergCompo = raw_ActPass.SignificativeComponante('DEV/DIV',-0.2, 1.5, (-0.2,0),'g',2)
@@ -1249,11 +1261,11 @@ if __name__ == "__main__":
 # 		
 
 # 		fig_HR = raw_ActPass.HeartRate_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
-# 		fig_Pupill = raw_ActPass.PupilDiam_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
+		fig_Pupill = raw_ActPass.PupilDiam_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
 		
 		
-# 		RSP_RATE_Mean_Div,RSP_RATE_Std_Div, RSP_Amplitude_Mean_Div, RSP_Amplitude_Std_Div = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/DIV','DEV/DIV']) # DIV condition
-# 		RSP_RATE_Mean_Foc,RSP_RATE_Std_Foc, RSP_Amplitude_Mean_Foc, RSP_Amplitude_Std_Foc = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/FOC','DEV/FOC']) # FOC condition
+		RSP_RATE_Mean_Div,RSP_RATE_Std_Div, RSP_Amplitude_Mean_Div, RSP_Amplitude_Std_Div = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/DIV','DEV/DIV']) # DIV condition
+		RSP_RATE_Mean_Foc,RSP_RATE_Std_Foc, RSP_Amplitude_Mean_Foc, RSP_Amplitude_Std_Foc = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/FOC','DEV/FOC']) # FOC condition
 		
 		
 # 		if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):

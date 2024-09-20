@@ -13,7 +13,7 @@ jupyter: python3
 import os 
 import glob
 RootAnalysisFolder = os.path.split(os.path.split(os.getcwd())[0])[0]
-
+import numpy as np
 import mne
 import matplotlib.pyplot as plt
 plt.rcParams['figure.figsize']=(15,8)
@@ -51,7 +51,7 @@ Read Raw File
 if FlagProcessAnalysis :
 	# Read fif filename and convert in raw object
 	raw_SmoothPurs = SmoothPursuit(FifFileName)
-	Target_Traject, GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times,PauseTimes = raw_SmoothPurs.SetDataGaze()
+	Target_Traject, GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times = raw_SmoothPurs.SetDataGaze()
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -65,13 +65,18 @@ if FlagProcessAnalysis :
 else:
 	print("  ****************         NO DATA          ****************")
 ```
+
+
+
 ## Detect saccades and plot gaze trajectory with saccade
 ```{python}
 if FlagProcessAnalysis :
-	EsacLeft,NbSaccades_Left,EsacRight,NbSaccades_Right,AmpSaccLeft,AmpSaccRight = raw_SmoothPurs.DetectSaccades_andPlot(GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times,PauseTimes)
+	EsacLeft,NbSaccades_Left,EsacRight,NbSaccades_Right,AmpSaccLeft,AmpSaccRight = raw_SmoothPurs.DetectSaccades_andPlot(Target_Traject,GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times)
 else:
 	print("  ****************         NO DATA          ****************")
 ```
+		
+
 
 ## Compute Velocity and all parameters
 ```{python}
@@ -83,24 +88,28 @@ else:
 ```
 
 
+
 ## Analysis of EOG signal
 ```{python}
 if FlagProcessAnalysis :
 	NbBlinks,RMSE_EOG = raw_SmoothPurs.EOGAnalysis(raw_SmoothPurs.mne_raw)
-	NbBlinksPerCycle_EOG = NbBlinks/raw_SmoothPurs.NbCycles
+	NbBlinksPerCycle_EOG = NbBlinks/raw_SmoothPurs.Nb_blocks
 	Results.update({'NbBlinksPerCycle_EOG':NbBlinksPerCycle_EOG})
 	Results.update({'RMSE_EOG':RMSE_EOG})
+	Results.update({'Median_RMSE_EOG':np.median(RMSE_EOG)})
 else:
 	print("  ****************         NO DATA          ****************")
 ```
+
+
 
 ## Parameters
 
 ### Root Mean Square Error : $$ \sqrt{\frac{1}{n}\Sigma_{i=1}^{n}{\Big(Gaze_i - Target_i\Big)^2}} $$
 ```{python}
 if FlagProcessAnalysis :
-	print("Left Eye: ",Results['RMSE_Left'])
-	print("Right Eye : ",Results['RMSE_Right'])
+	print("Left Eye: ",Results['Median_RMSE_Left'])
+	print("Right Eye : ",Results['Median_RMSE_Right'])
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -108,8 +117,8 @@ else:
 ### Number of saccades per cycle :
 ```{python}
 if FlagProcessAnalysis :
-	print("Left Eye: ",Results['Nb_Sacc_PerCycle_Left'], "saccades / cycle")
-	print("Right Eye : ",Results['Nb_Sacc_PerCycle_Right'], "saccades / cycle")
+	print("Left Eye: ",Results['Median_Nb_Sacc_PerCycle_Left'], "saccades / cycle")
+	print("Right Eye : ",Results['Median_Nb_Sacc_PerCycle_Right'], "saccades / cycle")
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -117,8 +126,8 @@ else:
 ### Mean amplitude of saccades :
 ```{python}
 if FlagProcessAnalysis :
-	print("Left Eye: ",Results['MeanAmpSacc_LeftEye'], "°")
-	print("Right Eye : ",Results['MeanAmpSacc_RightEye'],"°")
+	print("Left Eye: ",Results['MedianAmpSacc_LeftEye'], "°")
+	print("Right Eye : ",Results['MedianAmpSacc_RightEye'],"°")
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -128,8 +137,8 @@ else:
 ### Gaze velocity : (target : 15°/s)
 ```{python}
 if FlagProcessAnalysis :
-	print("Left Eye: ",Results['MeanVelocity_Left'] , "°/s")
-	print("Right Eye : ",Results['MeanVelocity_Right'], "°/s")
+	print("Left Eye: ",Results['MedianVelocity_Left'] , "°/s")
+	print("Right Eye : ",Results['MedianVelocity_Right'], "°/s")
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -138,8 +147,8 @@ else:
 ### Gain Velocity : 
 ```{python}
 if FlagProcessAnalysis :
-	print("Left Eye: ",Results['GainVelocity_Left'] )
-	print("Right Eye : ",Results['GainVelocity_Right'])
+	print("Left Eye: ",Results['MedianGainVelocity_Left'] )
+	print("Right Eye : ",Results['MedianGainVelocity_Right'])
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -156,7 +165,7 @@ else:
 ### RMSE on EOG data
 ```{python}
 if FlagProcessAnalysis :
-	print("RMSE : " , Results['RMSE_EOG'])
+	print("RMSE : " , Results['Median_RMSE_EOG'])
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -168,9 +177,8 @@ if FlagProcessAnalysis :
 		os.mkdir(RootDirectory_Results + SUBJECT_NAME)
 	SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_SmoothPursuit.json"
 	raw_SmoothPurs.SaveResults(Results,SaveDataFilename)
-	py_tools.append_to_json_file(SaveDataFilename, {'NbBlinksPerCycle_EOG': Results['NbBlinksPerCycle_EOG'],'RMSE_EOG':Results['RMSE_EOG']})
+	py_tools.append_to_json_file(SaveDataFilename, {'NbBlinksPerCycle_EOG': Results['NbBlinksPerCycle_EOG'],'RMSE_EOG':Results['Median_RMSE_EOG']})
 
 ```
 
-		
 		
