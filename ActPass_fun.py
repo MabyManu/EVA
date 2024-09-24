@@ -747,7 +747,7 @@ class ActPass:
 				
 		Epochs_DiamPupil.drop(Epoch2remove,verbose=False)
 		figPupil = plt.figure()	
-		PupilDiam_Cond1_epochData_raw = []
+		PupilDiam_Cond1_epochData_raw = np.array([])
 		PupilDiam_Cond2_epochData_raw = []
 		
 		del raw_Pupil
@@ -781,10 +781,12 @@ class ActPass:
 		FlagCond1 = False
 		FlagCond2 = False
 		
-		if (len(PupilDiam_Cond1_epochData_raw)>0):
+		if (PupilDiam_Cond1_epochData_raw.ndim>1):
 			PupilDiam_Cond1_epochData = py_tools.AutoReject(PupilDiam_Cond1_epochData_raw,10)
 			FlagCond1 = True
-		if (len(PupilDiam_Cond2_epochData_raw)>0):
+
+				
+		if (PupilDiam_Cond2_epochData_raw.ndim>1):
 			PupilDiam_Cond2_epochData = py_tools.AutoReject(PupilDiam_Cond2_epochData_raw,10)
 			FlagCond2 = True
 
