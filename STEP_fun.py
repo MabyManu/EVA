@@ -213,30 +213,38 @@ class STEP:
 		fig_EOG  = plt.figure()
 		DictStartSaccTrials = {}
 		DictStartSaccMean = {}
+		VarEOGAmp = {}
 		ix = 0
+		ixFixationduration = np.where(Times==TargetFixationDuration)[0]
 		for k in DictData_EOG.keys():
 			Cond_curr = k
 			NbTrials = np.shape(DictData_EOG[Cond_curr])[0]
-			MeanEOG_Curr  = np.mean(DictData_EOG[Cond_curr],axis=0)
+			
+			
+			CorrTrial = py_tools.correlation_lignes_matrice_vecteur(DictData_EOG[Cond_curr],np.median(DictData_EOG[Cond_curr],axis=0))
+
+			MeanEOG_Curr  = np.median(DictData_EOG[Cond_curr][np.where((CorrTrial>0.5))[0],:],axis=0)
 			Tab_StartSaccade_curr = np.zeros(NbTrials)
 			ax = plt.subplot(NbRow, NbCol, ix + 1)
 			for i_trials in range(NbTrials):
 			    data_curr = DictData_EOG[Cond_curr][i_trials]
 			    ax.plot(Times,data_curr,'b',linewidth=0.2)
-			    ixFlect_curr = py_tools.DetectInflectionPointDerivative(data_curr)
+			    ixFlect_curr = py_tools.DetectInflectionPointDerivative(data_curr[np.where(Times>0)[0][0]:])+np.where(Times>0)[0][0]
 			    ax.plot(Times[ixFlect_curr],data_curr[ixFlect_curr],'g+')
 			    Tab_StartSaccade_curr[i_trials] = Times[ixFlect_curr]
 			ax.plot(Times,MeanEOG_Curr,'m')
 			plt.axvline(0,color = 'k',linestyle ='dotted')
 			plt.axvline(TargetFixationDuration,color = 'm',linestyle ='dotted')
-			ixFlect_Mean = py_tools.DetectInflectionPointDerivative(MeanEOG_Curr)
+			ixFlect_Mean = py_tools.DetectInflectionPointDerivative(MeanEOG_Curr[np.where(Times>0)[0][0]:])+np.where(Times>0)[0][0]
 			ax.plot(Times[ixFlect_Mean],MeanEOG_Curr[ixFlect_Mean],'ro')
 			ax.text(Times[ixFlect_Mean],MeanEOG_Curr[ixFlect_Mean],'Latency : ' + f"{Times[ixFlect_Mean]*1000:.0f}" + ' ms',fontsize='small')
+			ax.text(TargetFixationDuration,MeanEOG_Curr[ixFixationduration]*1.2,'Variability : ' + f"{np.std(DictData_EOG[Cond_curr][:,ixFixationduration]*1e6):.0f}" + ' µV',fontsize='small')
 			ax.set_title(Cond_curr + ' Target')
 			DictStartSaccTrials[Cond_curr] = Tab_StartSaccade_curr
 			DictStartSaccMean[Cond_curr] = Times[ixFlect_Mean]
+			VarEOGAmp[Cond_curr] = np.std(DictData_EOG[Cond_curr][:,ixFixationduration]*1e6)
 			ix = ix +1
-		return fig_EOG,DictStartSaccTrials,DictStartSaccMean
+		return fig_EOG,DictStartSaccTrials,DictStartSaccMean,VarEOGAmp
 
 
 			

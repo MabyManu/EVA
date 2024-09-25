@@ -1579,20 +1579,21 @@ class CovertAttention:
 
 		for i_chan in range(NbChan):
 			ax = plt.subplot(NbRow, NbCol, i_chan + 1) 
-			fm.fit(Freqs_Band, np.nanmean(Spectre_Gaze[:,i_chan,:],axis=0), freq_range)
-			plot_annotated_model(fm, annotate_peaks=True, annotate_aperiodic=True, plt_log=False,ax=ax)
-# 			fm.report(Freqs_Band, np.nanmean(Spectre_Gaze[:,i_chan,:],axis=0), freq_range,ax=ax)
-			ax.set_title(ListChan[i_chan],fontsize = 9)
-			ax.set_xlabel('Frequency (Hz)',fontsize=7)            
-			ax.set_ylabel('Amplitude ',fontsize=7)
-			ax.xaxis.set_tick_params(labelsize=8)
-			ax.yaxis.set_tick_params(labelsize=8)
-			
-			Results['ExponentCoeff_' + ListChan[i_chan]]=fm.aperiodic_params_[1]
-			if len(fm.peak_params_)>0:
-				Results['PeaksFreq'+ ListChan[i_chan]] = fm.peak_params_[0][0]
-				Results['PeaksPow'+ ListChan[i_chan]] = fm.peak_params_[0][1]
-				Results['PeaksBandWidth'+ ListChan[i_chan]] = fm.peak_params_[0][2]
+			if (np.sum(np.nanmean(Spectre_Gaze[:,i_chan,:],axis=0))>0):
+				fm.fit(Freqs_Band, np.nanmean(Spectre_Gaze[:,i_chan,:],axis=0), freq_range)
+				plot_annotated_model(fm, annotate_peaks=True, annotate_aperiodic=True, plt_log=False,ax=ax)
+	# 			fm.report(Freqs_Band, np.nanmean(Spectre_Gaze[:,i_chan,:],axis=0), freq_range,ax=ax)
+				ax.set_title(ListChan[i_chan],fontsize = 9)
+				ax.set_xlabel('Frequency (Hz)',fontsize=7)            
+				ax.set_ylabel('Amplitude ',fontsize=7)
+				ax.xaxis.set_tick_params(labelsize=8)
+				ax.yaxis.set_tick_params(labelsize=8)
+				
+				Results['ExponentCoeff_' + ListChan[i_chan]]=fm.aperiodic_params_[1]
+				if len(fm.peak_params_)>0:
+					Results['PeaksFreq'+ ListChan[i_chan]] = fm.peak_params_[0][0]
+					Results['PeaksPow'+ ListChan[i_chan]] = fm.peak_params_[0][1]
+					Results['PeaksBandWidth'+ ListChan[i_chan]] = fm.peak_params_[0][2]
 			
 		plt.gcf().suptitle("Spectra of Eye Movements")		
 
