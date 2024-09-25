@@ -288,8 +288,8 @@ if FlagProcessAnalysis :
 	# Plot EOG for each epoch
 	DictData_EOG = DictData_EOGHoriz
 	DictData_EOG.update(DictData_EOGVerti)
-	fig_EOG, DictStartSacc_Trials, DictStartSacc_Mean = raw_Step.Plot_EOG(DictData_EOG,raw_Step.Times,raw_Step.TargetFixationDuration)
-	DictLatencyInit_EOGmean ={"Latency_InitSacc_EOG":DictStartSacc_Mean}
+	fig_EOG, DictStartSacc_Trials, DictStartSacc_Mean,VarEOGAmp = raw_Step.Plot_EOG(DictData_EOG,raw_Step.Times,raw_Step.TargetFixationDuration)
+	DictLatencyInit_EOGmean ={"Latency_InitSacc_EOG":DictStartSacc_Mean,"FixationAmplitudeVariability":VarEOGAmp}
 	py_tools.append_to_json_file(SaveDataFilename, DictLatencyInit_EOGmean)
 else:
 	print("  ****************         NO DATA          ****************")
