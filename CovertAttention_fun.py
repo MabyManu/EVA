@@ -1695,7 +1695,8 @@ if __name__ == "__main__":
  			                  'Instruct/AttLeft'  : 9 , 'Instruct/AttRight' : 10}
 		
 		mne_rawHorizCovAtt = CovertAtt_Horiz.ReadFileandConvertEvent(FifFileName, DictEvent_Horiz)
-		
+		figSpectGaze,Results_SpectGaze = CovertAtt_Horiz.GazeSpectralAnalysis(mne_rawHorizCovAtt,['Gaze_LEye_X','Gaze_LEye_Y','Gaze_REye_X','Gaze_REye_Y'],0.25,15,0.1)
+
 		
 		figSpectVertiEOG,Results_SpectVertiEOG = CovertAtt_Horiz.EOGSpectralAnalysis(mne_rawHorizCovAtt,['Fp1','Fp2'],0.25,15,0.1,'Verti')
 		figSpectHorizEOG,Results_SpectHorizEOG = CovertAtt_Horiz.EOGSpectralAnalysis(mne_rawHorizCovAtt,['EOGLef','EOGRig'],0.25,15,0.1,'Horiz')
