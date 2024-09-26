@@ -271,7 +271,7 @@ if FlagProcessAnalysis :
 
 	
 	SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_STEP.json"
-	py_tools.sauvegarder_dictionnaires(SaveDataFilename, Dict_MeanGaze)
+	py_tools.append_to_json_file(SaveDataFilename,Dict_MeanGaze )
 	
 else:
 	print("  ****************         NO DATA          ****************")
