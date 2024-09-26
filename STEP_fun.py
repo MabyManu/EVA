@@ -207,6 +207,7 @@ class STEP:
 	
 	
 	def Plot_EOG(self,DictData_EOG,Times,TargetFixationDuration):
+		CorrelThreshold = 0.5
 		NbConditions = len(DictData_EOG)
 		NbCol = np.int64(np.ceil(np.sqrt(NbConditions)))
 		NbRow = np.int64(NbConditions/NbCol)
@@ -221,9 +222,19 @@ class STEP:
 			NbTrials = np.shape(DictData_EOG[Cond_curr])[0]
 			
 			
-			CorrTrial = py_tools.correlation_lignes_matrice_vecteur(DictData_EOG[Cond_curr],np.median(DictData_EOG[Cond_curr],axis=0))
+			CorrTrial = py_tools.correlation_lignes_matrice_vecteur(DictData_EOG[Cond_curr],np.mean(DictData_EOG[Cond_curr],axis=0))
+			
+			
 
-			MeanEOG_Curr  = np.median(DictData_EOG[Cond_curr][np.where((CorrTrial>0.5))[0],:],axis=0)
+			MeanEOG_Curr  = np.median(DictData_EOG[Cond_curr][np.where((CorrTrial>CorrelThreshold))[0],:],axis=0)
+			
+			if np.sum(np.isnan(MeanEOG_Curr))>0:
+				while (np.sum(np.isnan(MeanEOG_Curr))>0):
+					CorrelThreshold = CorrelThreshold *0.90
+					MeanEOG_Curr  = np.median(DictData_EOG[Cond_curr][np.where((CorrTrial>(CorrelThreshold)))[0],:],axis=0)
+			
+			
+			
 			Tab_StartSaccade_curr = np.zeros(NbTrials)
 			ax = plt.subplot(NbRow, NbCol, ix + 1)
 			for i_trials in range(NbTrials):
@@ -435,6 +446,6 @@ if __name__ == "__main__":
 		# Plot EOG for each epoch
 		DictData_EOG = DictData_EOGHoriz
 		DictData_EOG.update(DictData_EOGVerti)
-		_,_,DictLatencyInit_EOGmean = raw_Step.Plot_EOG(DictData_EOG,raw_Step.Times,raw_Step.TargetFixationDuration)
+		_,_,DictLatencyInit_EOGmean,VarEOGAmp = raw_Step.Plot_EOG(DictData_EOG,raw_Step.Times,raw_Step.TargetFixationDuration)
 		DictLatencyInit_EOGmean ={"Latency_InitSacc_EOG":DictLatencyInit_EOGmean}
 		py_tools.append_to_json_file(SaveDataFilename, DictLatencyInit_EOGmean)
