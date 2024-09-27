@@ -89,7 +89,11 @@ figHR_Mvt = raw_Claassen.HeartRate_analysis()
 
 ## Analysis of Pupil Diameter variation during the 'Move' and 'Rest' Conditions
 ```{python}
-figPupil = raw_Claassen.PupilDiam_analysis()
+if ('Gaze_LEye_X' in raw_Claassen.mne_raw.info['ch_names']):
+	figPupil = raw_Claassen.PupilDiam_analysis()
+else:
+	print("  ****************         NO Eye Tracker DATA          ****************")
+
 ```
 
 
