@@ -43,6 +43,7 @@ FifFileName = RootDirectory_RAW + "***SUJ***/***SUJ***_VisAtt_Verti.raw.fif"
 
 SUBJECT_NAME = os.path.split(os.path.split(FifFileName)[0])[1]
 FlagProcessAnalysis = os.path.isfile(FifFileName)
+FlagET = False
 
 ```
 
@@ -61,7 +62,13 @@ if FlagProcessAnalysis :
 		                  'Instruct/AttUp'  : 9 , 'Instruct/AttBottom' : 10 }
 		
 	mne_rawVertiCovAtt = CovertAtt_Verti.ReadFileandConvertEvent(FifFileName, DictEvent_Verti)
-	Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,AttSide = CovertAtt_Verti.SetGazeData(mne_rawVertiCovAtt)
+	FlagET = 'Gaze_LEye_X' in mne_rawVertiCovAtt.info['ch_names']
+
+	if FlagET:
+		Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,AttSide = CovertAtt_Verti.SetGazeData(mne_rawVertiCovAtt)
+	else:
+		print("  ****************         NO DATA          ****************")
+
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -69,7 +76,7 @@ else:
 ## Plot Gaze Position
 ### Left Eye
 ```{python}
-if FlagProcessAnalysis :
+if FlagET :
 	fig_Leye,Perct_FixCross_Leye = CovertAtt_Verti.PlotGazeFixation(Gaze_LEye_X,Gaze_LEye_Y,AttSide)
 	fig_Leye.suptitle('Vertical -  Left Eye Gaze Fixation')
 else:
@@ -77,7 +84,7 @@ else:
 ```
 ### Right Eye
 ```{python}
-if FlagProcessAnalysis :
+if FlagET :
 	
 	fig_Reye,Perct_FixCross_Reye = CovertAtt_Verti.PlotGazeFixation(Gaze_REye_X,Gaze_REye_Y,AttSide)
 	fig_Reye.suptitle('Vertical -  Right Eye Gaze Fixation')
@@ -87,7 +94,7 @@ else:
 
 ## Cross fixation accuracy
 ```{python}
-if FlagProcessAnalysis :
+if FlagET :
 	Mean_LE_XFix = np.nanmean(Perct_FixCross_Leye)
 	Mean_RE_XFix = np.nanmean(Perct_FixCross_Reye)
 	
@@ -102,14 +109,14 @@ else:
 ## Saccades
 ### Plot and detect
 ```{python}
-if FlagProcessAnalysis :
+if FlagET :
 	NbSaccades_LEye,NbSaccades_REye = CovertAtt_Verti.PlotSaccade(Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,mne_rawVertiCovAtt.info['sfreq'],AttSide,'Hori')
 else:
 	print("  ****************         NO DATA          ****************")
 ```
 ### Number of saccades
 ```{python}
-if FlagProcessAnalysis :
+if FlagET :
 	Mean_LE_Sacc = np.nanmean(NbSaccades_LEye)
 	Mean_RE_Sacc = np.nanmean(NbSaccades_REye)
 	
@@ -261,7 +268,7 @@ else:
 ### Left Eye
 #### Standards
 ```{python}
-if FlagProcessAnalysis :
+if FlagET :
 	CovertAtt_Verti.plotGazeCompareAttIgn (mne_rawVertiCovAtt,['Gaze_LEye_X','Gaze_LEye_Y'],-0.1,0.6,'Std',0.05,None)
 else:
 	print("  ****************         NO DATA          ****************")
@@ -269,7 +276,7 @@ else:
 
 #### Deviants
 ```{python}
-if FlagProcessAnalysis :
+if FlagET :
 	CovertAtt_Verti.plotGazeCompareAttIgn (mne_rawVertiCovAtt,['Gaze_LEye_X','Gaze_LEye_Y'],-0.1,0.6,'Dev',0.05,None)
 else:
 	print("  ****************         NO DATA          ****************")
@@ -279,7 +286,7 @@ else:
 ### Right Eye
 #### Standards
 ```{python}
-if FlagProcessAnalysis :
+if FlagET :
 	CovertAtt_Verti.plotGazeCompareAttIgn (mne_rawVertiCovAtt,['Gaze_REye_X','Gaze_REye_Y'],-0.1,0.6,'Std',0.05,None)
 else:
 	print("  ****************         NO DATA          ****************")
@@ -287,7 +294,7 @@ else:
 
 #### Deviants
 ```{python}
-if FlagProcessAnalysis :
+if FlagET :
 	CovertAtt_Verti.plotGazeCompareAttIgn (mne_rawVertiCovAtt,['Gaze_REye_X','Gaze_REye_Y'],-0.1,0.6,'Dev',0.05,None)
 else:
 	print("  ****************         NO DATA          ****************")
@@ -297,7 +304,7 @@ else:
 
 ## Spectral analysis of gaze position for each trial
 ```{python}
-if FlagProcessAnalysis :
+if FlagET :
 	figSpectGaze,Results_SpectGaze = CovertAtt_Verti.GazeSpectralAnalysis (mne_rawVertiCovAtt,['Gaze_LEye_X','Gaze_LEye_Y','Gaze_REye_X','Gaze_REye_Y'],0.25,15,0.1)
 else:
 	print("  ****************         NO DATA          ****************")
@@ -328,7 +335,7 @@ else:
 
 ## Pupil diameter in Attended condition, Deviants vs Standards
 ```{python}
-if FlagProcessAnalysis :
+if FlagET :
 	CovertAtt_Verti.plotDiamPupillCompareStdDevAtt (mne_rawVertiCovAtt,['PupDi_LEye','PupDi_REye'],-0.1,0.6,0.05,None)
 else:
 	print("  ****************         NO DATA          ****************")
@@ -342,13 +349,17 @@ if FlagProcessAnalysis :
 	if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
 		os.mkdir(RootDirectory_Results + SUBJECT_NAME)
 	SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_Cov_Att_Verti.json"
-	Results = {"PercentFix_LeftEye" : Mean_LE_XFix,"PercentFix_RightEye" : Mean_RE_XFix,"NumberOfSaccades_LeftEye" : Mean_LE_Sacc,"NumberOfSaccades_RightEye" : Mean_RE_Sacc,"P300Effect":P300Effect_OK}
+	if FlagET:
+		Results = {"PercentFix_LeftEye" : Mean_LE_XFix,"PercentFix_RightEye" : Mean_RE_XFix,"NumberOfSaccades_LeftEye" : Mean_LE_Sacc,"NumberOfSaccades_RightEye" : Mean_RE_Sacc,"P300Effect":P300Effect_OK}
+	else:
+		Results = {"P300Effect":P300Effect_OK}
 
 	with open(SaveDataFilename, "w") as outfile: 
 		   json.dump(Results, outfile)
 		   
 	py_tools.append_to_json_file(SaveDataFilename, {'CrossVal_1TrainXdawn':XValid_Acc_1TrainXdawn,'CrossVal_ReTrainXdawn':XValid_Acc_ReTrainXdawn})	
-	py_tools.append_to_json_file(SaveDataFilename,  Results_SpectGaze)
+	if FlagET:
+		py_tools.append_to_json_file(SaveDataFilename,  Results_SpectGaze)
 	py_tools.append_to_json_file(SaveDataFilename,  Results_SpectVertiEOG)
 	py_tools.append_to_json_file(SaveDataFilename,  Results_SpectHorizEOG)         
 
