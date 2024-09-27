@@ -31,6 +31,8 @@ import py_tools,gaze_tools,mne_tools
 class STEP:
 	def __init__(self,FifFileName):
 		self.mne_raw = mne.io.read_raw_fif(FifFileName,preload=True,verbose = 'ERROR')
+		self.events_from_annot, event_dict = mne.events_from_annotations(self.mne_raw,verbose = 'ERROR')
+
 		self.ListGazeChan = ['Gaze_LEye_X','Gaze_LEye_Y','Gaze_REye_X','Gaze_REye_Y']
 		self.ListEOG_Horiz = ['EOGLef','EOGRig']
 		self.ListEOG_Verti = ['Fp1','Fp2']
@@ -62,7 +64,8 @@ class STEP:
 		# Threshold of saccade amplitude for the detection
 		self.SaccadeAmp_Min_Deg = 2
 		
-		
+		self.event_id = dict(Left =  self.Code_Left_Excent, HalfLeft =  self.Code_Left_HalfExcent, Right = self.Code_Right_Excent, HalfRight = self.Code_Right_HalfExcent, Top = self.Code_Up_HalfExcent, Bottom = self.Code_Bottom_HalfExcent, Cross = self.Code_Cross)
+
 		
 	def SetEpoch_Gaze(self,Label,TimeWindow_Start,TimeWindow_End):
 		# Definition of Event Label
@@ -71,7 +74,6 @@ class STEP:
 		raw_Gaze = self.mne_raw.copy()
 		raw_Gaze.pick(self.ListGazeChan)
 		# Redefine Events
-		self.events_from_annot, event_dict = mne.events_from_annotations(raw_Gaze,verbose = 'ERROR')
 		
 		mapping = {self.Code_Left_Excent: 'Left', self.Code_Left_HalfExcent: 'HalfLeft', self.Code_Right_Excent: 'Right', self.Code_Right_HalfExcent : 'HalfRight', self.Code_Up_HalfExcent : 'Top', self.Code_Bottom_HalfExcent : 'Bottom',self.Code_Cross : 'Cross'}
 		annot_from_events = mne.annotations_from_events(
@@ -79,7 +81,6 @@ class STEP:
 		    orig_time=raw_Gaze.info['meas_date'])
 		raw_Gaze.set_annotations(annot_from_events)
 		
-		self.event_id = dict(Left =  self.Code_Left_Excent, HalfLeft =  self.Code_Left_HalfExcent, Right = self.Code_Right_Excent, HalfRight = self.Code_Right_HalfExcent, Top = self.Code_Up_HalfExcent, Bottom = self.Code_Bottom_HalfExcent, Cross = self.Code_Cross)
 		
 		# Epoching synchronize with the target display time
 		epochs = mne.Epochs(
@@ -296,6 +297,7 @@ if __name__ == "__main__":
 		
 		# Read fif filname and convert in raw object
 		raw_Step = STEP(FifFileName)
+		
 		
 		# Compute Epoch for the gaze data
 		Epoch_Left = raw_Step.SetEpoch_Gaze('Left',TimeWindow_Start,TimeWindow_End)

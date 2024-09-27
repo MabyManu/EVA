@@ -34,6 +34,8 @@ import py_tools,gaze_tools,mne_tools
 class SmoothPursuit:
 	def __init__(self,FifFileName):
 		self.mne_raw = mne.io.read_raw_fif(FifFileName,preload=True,verbose = 'ERROR')
+		self.SampFreq = self.mne_raw.info['sfreq']
+
 		self.ListGazeChan = ['Gaze_LEye_X','Gaze_LEye_Y','Gaze_REye_X','Gaze_REye_Y']
 		self.ListEOGVert = ['Fp1','Fp2']
 		self.ListEOGHoriz = ['EOGLef','EOGRig']
@@ -57,11 +59,36 @@ class SmoothPursuit:
 		self.TimeWinCycle = (self.Excentricity*self.Pix2DegCoeff*4)/self.TargetVelocity
 		
 		
+		# Define theorical trajectory		
+		Lat_RightExcentricity = self.TimeWinCycle*0.25
+		Lat_LeftExcentricity = self.TimeWinCycle*0.75
+		
+
+		Traject_pos = np.zeros(4)
+		Traject_pos[0] = 0
+		Traject_pos[1] = self.Excentricity*self.Pix2DegCoeff
+		Traject_pos[2] = - self.Excentricity*self.Pix2DegCoeff
+		Traject_pos[3] = 0		
+		
+		
+		f = interpolate.interp1d([0,Lat_RightExcentricity,Lat_LeftExcentricity,self.TimeWinCycle],Traject_pos)
+		self.NewTimes = np.arange(0,self.TimeWinCycle,1/self.SampFreq)
+		self.Traject = f(self.NewTimes)
+		events_from_annot, event_dict = mne.events_from_annotations(self.mne_raw,verbose='ERROR')	
+		events_from_annot = events_from_annot[3:,:]	
+		Lat_begCycle = np.hstack((events_from_annot[np.where(events_from_annot[:,2]==2)[0],0]- int(self.TimeWinCycle*self.SampFreq *0.25)))
+		Evt_BeginCycle = np.array(np.transpose(np.vstack((Lat_begCycle,np.zeros(len(Lat_begCycle)),33*np.ones(len(Lat_begCycle))))),dtype='i')
+
+		self.Nb_blocks = len(Evt_BeginCycle)
+
+
+		
+		
+		
 	def SetDataGaze(self):
 		## Analysis of the gaze data 
 		raw_Gaze = self.mne_raw.copy()
 		raw_Gaze.pick(self.ListGazeChan)
-		self.SampFreq = raw_Gaze.info['sfreq']
 		# EventLabel
 		events_from_annot, event_dict = mne.events_from_annotations(raw_Gaze,verbose='ERROR')	
 		events_from_annot = events_from_annot[3:,:]		
@@ -99,28 +126,13 @@ class SmoothPursuit:
 		Cycle_Data_Gaze_LeftEye_Y = (epochs_CyclesGaze.get_data(copy=True)[:,1,:]- self.Cross_Y)*self.Pix2DegCoeff
 		Cycle_Data_Gaze_RightEye_Y = (epochs_CyclesGaze.get_data(copy=True)[:,3,:]- self.Cross_Y)*self.Pix2DegCoeff
 
-		# Define theorical trajectory		
-		Lat_RightExcentricity = self.TimeWinCycle*0.25
-		Lat_LeftExcentricity = self.TimeWinCycle*0.75
-		
 
-		Traject_pos = np.zeros(4)
-		Traject_pos[0] = 0
-		Traject_pos[1] = self.Excentricity*self.Pix2DegCoeff
-		Traject_pos[2] = - self.Excentricity*self.Pix2DegCoeff
-		Traject_pos[3] = 0		
 		
 		
-		f = interpolate.interp1d([0,Lat_RightExcentricity,Lat_LeftExcentricity,self.TimeWinCycle],Traject_pos)
-		NewTimes = np.arange(0,self.TimeWinCycle,1/raw_Gaze.info['sfreq'])
-		Traject_pos_resamp = f(NewTimes)
-		
-		self.Nb_blocks = len(epochs_CyclesGaze)
-		
-		return Traject_pos_resamp,Cycle_Data_Gaze_LeftEye_X, Cycle_Data_Gaze_RightEye_X, Cycle_Data_Gaze_LeftEye_Y, Cycle_Data_Gaze_RightEye_Y, NewTimes
+		return Cycle_Data_Gaze_LeftEye_X, Cycle_Data_Gaze_RightEye_X, Cycle_Data_Gaze_LeftEye_Y, Cycle_Data_Gaze_RightEye_Y
 	
 	
-	def Plot_SmootPurs_Traject(self,Target_Traject,GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times):
+	def Plot_SmootPurs_Traject(self,GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y):
 				
 		NbCol = int(np.ceil(np.sqrt(self.Nb_blocks)))
 		NbRow = int(np.ceil(self.Nb_blocks/NbCol))
@@ -130,8 +142,8 @@ class SmoothPursuit:
 		
 		for i_cycle in range(self.Nb_blocks):
 			ax = plt.subplot(NbRow, NbCol, i_cycle + 1)
-			ax.plot(Times,GazeLE_X[i_cycle,:],'r',linewidth=1)
-			ax.plot(Times,Target_Traject,'c',linewidth=1)
+			ax.plot(self.NewTimes,GazeLE_X[i_cycle,:],'r',linewidth=1)
+			ax.plot(self.NewTimes,self.Traject,'c',linewidth=1)
 			ax.set_ylabel('Eye Position (°)',fontsize = 7)
 			ax.set_xlabel('Time (s)',fontsize = 7)
 			ax.yaxis.set_tick_params(labelsize=7)
@@ -146,8 +158,8 @@ class SmoothPursuit:
 		
 		for i_cycle in range(self.Nb_blocks):
 			ax = plt.subplot(NbRow, NbCol, i_cycle + 1)
-			ax.plot(Times,GazeRE_X[i_cycle,:],'g',linewidth=1)
-			ax.plot(Times,Target_Traject,'c',linewidth=1)
+			ax.plot(self.NewTimes,GazeRE_X[i_cycle,:],'g',linewidth=1)
+			ax.plot(self.NewTimes,self.Traject,'c',linewidth=1)
 			ax.set_ylabel('Eye Position (°)',fontsize = 7)
 			ax.set_xlabel('Time (s)',fontsize = 7)
 			ax.yaxis.set_tick_params(labelsize=7)
@@ -160,7 +172,7 @@ class SmoothPursuit:
 		
 		
 		
-	def DetectSaccades_andPlot(self,Target_Traject,GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times):
+	def DetectSaccades_andPlot(self,GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y):
 		
 		
 		fig_Gaze_LE = plt.figure()
@@ -173,7 +185,7 @@ class SmoothPursuit:
 			Epoc_gazeLE_X = np.round((GazeLE_X[i_cycle,:]/self.Pix2DegCoeff)+self.Cross_X)
 			Epoc_gazeLE_Y = np.round((GazeLE_Y[i_cycle,:]/self.Pix2DegCoeff)+self.Cross_Y)
 
-			Ssac_Left, EsacLeft = detectors.saccade_detection(Epoc_gazeLE_X, Epoc_gazeLE_Y, np.round(Times*self.SampFreq), minlen = 5,  maxvel=1000)
+			Ssac_Left, EsacLeft = detectors.saccade_detection(Epoc_gazeLE_X, Epoc_gazeLE_Y, np.round(self.NewTimes*self.SampFreq), minlen = 5,  maxvel=1000)
 			
 			# Keep Saccades with minimum Amplitude
 			AmpSaccLeft = np.zeros(len(EsacLeft))
@@ -196,8 +208,8 @@ class SmoothPursuit:
 			
 
 			ax = plt.subplot(NbRow, NbCol, i_cycle + 1)
-			ax.plot(Times,GazeLE_X[i_cycle,:],'r',linewidth=1)
-			ax.plot(Times,Target_Traject,'c',linewidth=1)
+			ax.plot(self.NewTimes,GazeLE_X[i_cycle,:],'r',linewidth=1)
+			ax.plot(self.NewTimes,self.Traject,'c',linewidth=1)
 			ax.set_ylabel('Eye Position (°)',fontsize = 7)
 			ax.set_xlabel('Time (s)',fontsize = 7)
 			ax.yaxis.set_tick_params(labelsize=7)
@@ -219,7 +231,7 @@ class SmoothPursuit:
 			Epoc_gazeRE_X = np.round((GazeRE_X[i_cycle,:]/self.Pix2DegCoeff)+self.Cross_X)
 			Epoc_gazeRE_Y = np.round((GazeRE_Y[i_cycle,:]/self.Pix2DegCoeff)+self.Cross_Y)
 
-			Ssac_Right, EsacRight = detectors.saccade_detection(Epoc_gazeRE_X, Epoc_gazeRE_Y, np.round(Times*self.SampFreq), minlen = 5,  maxvel=1000)
+			Ssac_Right, EsacRight = detectors.saccade_detection(Epoc_gazeRE_X, Epoc_gazeRE_Y, np.round(self.NewTimes*self.SampFreq), minlen = 5,  maxvel=1000)
 			
 			# Keep Saccades with minimum Amplitude
 			AmpSaccRight = np.zeros(len(EsacRight))
@@ -240,8 +252,8 @@ class SmoothPursuit:
 			
 
 			ax = plt.subplot(NbRow, NbCol, i_cycle + 1)
-			ax.plot(Times,GazeRE_X[i_cycle,:],'g',linewidth=1)
-			ax.plot(Times,Target_Traject,'c',linewidth=1)
+			ax.plot(self.NewTimes,GazeRE_X[i_cycle,:],'g',linewidth=1)
+			ax.plot(self.NewTimes,self.Traject,'c',linewidth=1)
 			ax.set_ylabel('Eye Position (°)',fontsize = 7)
 			ax.set_xlabel('Time (s)',fontsize = 7)
 			ax.yaxis.set_tick_params(labelsize=7)
@@ -255,7 +267,7 @@ class SmoothPursuit:
 		return EsacLeftTOT,NbSaccades_LeftTOT,EsacRightTOT,NbSaccades_RightTOT,AmpSaccLeftTOT,AmpSaccRightTOT
 	
 	
-	def ComputeVelocity_andPlot(self,GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times,EsacLeft,EsacRight):
+	def ComputeVelocity_andPlot(self,GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,EsacLeft,EsacRight):
 		# Compute Velocity 
 
 		NbCol = int(np.ceil(np.sqrt(self.Nb_blocks)))
@@ -272,8 +284,8 @@ class SmoothPursuit:
 		Velocity_RightTOT=[]
 		
 		for i_cycle in range(self.Nb_blocks):
-			Velocity_Left = gaze_tools.computeVelocity(GazeLE_X[i_cycle,:],GazeLE_Y[i_cycle,:],Times*self.SampFreq)
-			Velocity_Right = gaze_tools.computeVelocity(GazeRE_X[i_cycle,:],GazeRE_Y[i_cycle,:],Times*self.SampFreq)
+			Velocity_Left = gaze_tools.computeVelocity(GazeLE_X[i_cycle,:],GazeLE_Y[i_cycle,:],self.NewTimes*self.SampFreq)
+			Velocity_Right = gaze_tools.computeVelocity(GazeRE_X[i_cycle,:],GazeRE_Y[i_cycle,:],self.NewTimes*self.SampFreq)
 			
 			
 			ax_LE[i_cycle].plot(Velocity_Left,'k')
@@ -343,7 +355,7 @@ class SmoothPursuit:
 		return Velocity_LeftTOT,Velocity_RightTOT
 		
 		
-	def ComputeParameters(self,Target_Traject,GazeLE_X,GazeRE_X,EsacLeft,EsacRight,AmpSaccLeft,AmpSaccRight,Velocity_Left,Velocity_Right):
+	def ComputeParameters(self,GazeLE_X,GazeRE_X,EsacLeft,EsacRight,AmpSaccLeft,AmpSaccRight,Velocity_Left,Velocity_Right):
 		
 		
 		RMSE_Left = []
@@ -364,20 +376,20 @@ class SmoothPursuit:
 		for i_block in range(self.Nb_blocks):		
 			NbSaccades_Left = len(EsacLeft[i_block])
 			NbSaccades_Right = len(EsacRight[i_block])
-			Traject_pos_resamp_Left_NoSacc = Target_Traject.copy()
+			Traject_pos_resamp_Left_NoSacc = self.Traject.copy()
 			Data_Gaze_LeftEye_X_NoSacc = GazeLE_X[i_block].copy()
 			for i_sacc_Left in range(NbSaccades_Left):
 				ixbeg = np.int32(EsacLeft[i_block][i_sacc_Left][0]) - 3  if (np.int32(EsacLeft[i_block][i_sacc_Left][0]) - 3 >=0) else 0
-				ixend = np.int32(EsacLeft[i_block][i_sacc_Left][1]) + 3  if (np.int32(EsacLeft[i_block][i_sacc_Left][1]) + 3 <len(Target_Traject)) else (len(Target_Traject)-1)
+				ixend = np.int32(EsacLeft[i_block][i_sacc_Left][1]) + 3  if (np.int32(EsacLeft[i_block][i_sacc_Left][1]) + 3 <len(self.Traject)) else (len(self.Traject)-1)
 				
 				Traject_pos_resamp_Left_NoSacc[ixbeg:ixend]=np.NaN
 				Data_Gaze_LeftEye_X_NoSacc[ixbeg:ixend]=np.NaN
 			
-			Traject_pos_resamp_Right_NoSacc = Target_Traject.copy()
+			Traject_pos_resamp_Right_NoSacc = self.Traject.copy()
 			Data_Gaze_RightEye_X_NoSacc = GazeRE_X[i_block].copy()
 			for i_sacc_Right in range(NbSaccades_Right):
 				ixbeg = np.int32(EsacRight[i_block][i_sacc_Right][0]) - 3  if (np.int32(EsacRight[i_block][i_sacc_Right][0]) - 3 >=0) else 0
-				ixend = np.int32(EsacRight[i_block][i_sacc_Right][1]) + 3  if (np.int32(EsacRight[i_block][i_sacc_Right][1]) + 3 <len(Target_Traject)) else (len(Target_Traject)-1)
+				ixend = np.int32(EsacRight[i_block][i_sacc_Right][1]) + 3  if (np.int32(EsacRight[i_block][i_sacc_Right][1]) + 3 <len(self.Traject)) else (len(self.Traject)-1)
 				Traject_pos_resamp_Right_NoSacc[ixbeg:ixend]=np.NaN
 				Data_Gaze_RightEye_X_NoSacc[ixbeg:ixend]=np.NaN
 			
@@ -676,16 +688,16 @@ if __name__ == "__main__":
 		
 		# Read fif filename and convert in raw object
 		raw_SmoothPurs = SmoothPursuit(FifFileName)
-		Target_Traject, GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times = raw_SmoothPurs.SetDataGaze()
-		raw_SmoothPurs.Plot_SmootPurs_Traject(Target_Traject,GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times)
+		GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y = raw_SmoothPurs.SetDataGaze()
+		raw_SmoothPurs.Plot_SmootPurs_Traject(GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y)
 		
 		
-		EsacLeft,NbSaccades_Left,EsacRight,NbSaccades_Right,AmpSaccLeft,AmpSaccRight = raw_SmoothPurs.DetectSaccades_andPlot(Target_Traject,GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times)
+		EsacLeft,NbSaccades_Left,EsacRight,NbSaccades_Right,AmpSaccLeft,AmpSaccRight = raw_SmoothPurs.DetectSaccades_andPlot(GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y)
 		
 		
 		
-		Velocity_Left,Velocity_Right = raw_SmoothPurs.ComputeVelocity_andPlot(GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times,EsacLeft,EsacRight)
-		Results = raw_SmoothPurs.ComputeParameters(Target_Traject,GazeLE_X,GazeRE_X,EsacLeft,EsacRight,AmpSaccLeft,AmpSaccRight,Velocity_Left,Velocity_Right)
+		Velocity_Left,Velocity_Right = raw_SmoothPurs.ComputeVelocity_andPlot(GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,EsacLeft,EsacRight)
+		Results = raw_SmoothPurs.ComputeParameters(GazeLE_X,GazeRE_X,EsacLeft,EsacRight,AmpSaccLeft,AmpSaccRight,Velocity_Left,Velocity_Right)
 		
 		NbBlinks,RMSE_EOG = raw_SmoothPurs.EOGAnalysis(raw_SmoothPurs.mne_raw)
 		NbBlinksPerCycle_EOG = NbBlinks/raw_SmoothPurs.Nb_blocks

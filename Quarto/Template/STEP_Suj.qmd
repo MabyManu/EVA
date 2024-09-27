@@ -41,22 +41,30 @@ FifFileName = RootDirectory_RAW + "***SUJ***/***SUJ***_STEP.raw.fif"
 
 SUBJECT_NAME = os.path.split(os.path.split(FifFileName)[0])[1]
 FlagProcessAnalysis = os.path.isfile(FifFileName)
+SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_STEP.json"
+
 ```
 
 
 Read File & set gaze Epoch
 
 ```{python}
+TimeWindow_Start = -1.0
+TimeWindow_End = 3.0
 if FlagProcessAnalysis :
 	raw_Step = STEP(FifFileName)
-	TimeWindow_Start = -1.0
-	TimeWindow_End = 3.0
-	Epoch_Left = raw_Step.SetEpoch_Gaze('Left',TimeWindow_Start,TimeWindow_End)
-	Epoch_Right = raw_Step.SetEpoch_Gaze('Right',TimeWindow_Start,TimeWindow_End)
-	Epoch_HalfLeft = raw_Step.SetEpoch_Gaze('HalfLeft',TimeWindow_Start,TimeWindow_End)
-	Epoch_HalfRight = raw_Step.SetEpoch_Gaze('HalfRight',TimeWindow_Start,TimeWindow_End)
-	Epoch_Top = raw_Step.SetEpoch_Gaze('Top',TimeWindow_Start,TimeWindow_End)
-	Epoch_Bottom = raw_Step.SetEpoch_Gaze('Bottom',TimeWindow_Start,TimeWindow_End)
+	FlagET = 'Gaze_LEye_X' in raw_Step.mne_raw.info['ch_names']
+	FlagProcessAnalysis = FlagET
+	if FlagET:
+
+		Epoch_Left = raw_Step.SetEpoch_Gaze('Left',TimeWindow_Start,TimeWindow_End)
+		Epoch_Right = raw_Step.SetEpoch_Gaze('Right',TimeWindow_Start,TimeWindow_End)
+		Epoch_HalfLeft = raw_Step.SetEpoch_Gaze('HalfLeft',TimeWindow_Start,TimeWindow_End)
+		Epoch_HalfRight = raw_Step.SetEpoch_Gaze('HalfRight',TimeWindow_Start,TimeWindow_End)
+		Epoch_Top = raw_Step.SetEpoch_Gaze('Top',TimeWindow_Start,TimeWindow_End)
+		Epoch_Bottom = raw_Step.SetEpoch_Gaze('Bottom',TimeWindow_Start,TimeWindow_End)
+	else:
+		print("  ****************         NO DATA          ****************")
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -270,7 +278,6 @@ if FlagProcessAnalysis :
 	# Save values from Mean Gaze
 
 	
-	SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_STEP.json"
 	py_tools.append_to_json_file(SaveDataFilename,Dict_MeanGaze )
 	
 else:
@@ -279,7 +286,7 @@ else:
 
 ## EOG analysis
 ```{python}
-if FlagProcessAnalysis :
+if os.path.isfile(FifFileName):
 	# Process EOG data
 	TimeWindow_Start = -0.5
 	DictData_EOGHoriz = raw_Step.SetDataEOG(raw_Step.mne_raw,['EOGLef','EOGRig'],'Horiz',[1,-1],TimeWindow_Start,TimeWindow_End,raw_Step.event_id,raw_Step.events_from_annot,['Left','HalfLeft','Right','HalfRight'])
@@ -290,7 +297,10 @@ if FlagProcessAnalysis :
 	DictData_EOG.update(DictData_EOGVerti)
 	fig_EOG, DictStartSacc_Trials, DictStartSacc_Mean,VarEOGAmp = raw_Step.Plot_EOG(DictData_EOG,raw_Step.Times,raw_Step.TargetFixationDuration)
 	DictLatencyInit_EOGmean ={"Latency_InitSacc_EOG":DictStartSacc_Mean,"FixationAmplitudeVariability":VarEOGAmp}
-	py_tools.append_to_json_file(SaveDataFilename, DictLatencyInit_EOGmean)
+	if FlagET:
+		py_tools.append_to_json_file(SaveDataFilename, DictLatencyInit_EOGmean)
+	else:
+		py_tools.sauvegarder_dictionnaires(DictLatencyInit_EOGmean,SaveDataFilename)
 else:
 	print("  ****************         NO DATA          ****************")
 	
