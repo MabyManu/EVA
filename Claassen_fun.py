@@ -505,6 +505,7 @@ class Claassen:
 		raw_ecg= raw_ecg.pick_channels(['ECG'])
 		raw_ecg = raw_ecg.filter(l_freq_ecg,h_freq_ecg,picks='ECG',verbose = 'ERROR')
 		ecg_eventsarray,ch_ecg,average_pulse = mne.preprocessing.find_ecg_events(raw_ecg, event_id=999, qrs_threshold = 'auto',ch_name='ECG',l_freq=l_freq_ecg, h_freq=h_freq_ecg)
+		ecg_eventsarray = ecg_eventsarray[np.where(ecg_eventsarray[:,0]<len(raw_ecg.times))[0],:]
 		HeartRate_raw = 60000/np.diff(ecg_eventsarray[:,0])
 
 		ix_2keep = np.where((HeartRate_raw>(np.mean(HeartRate_raw)-(3*np.std(HeartRate_raw)))) & (HeartRate_raw<(np.mean(HeartRate_raw)+(3*np.std(HeartRate_raw)))) )[0]
@@ -597,12 +598,12 @@ class Claassen:
 		plt.fill_between(Epochs_HR.times, np.squeeze(Evo_Start_data)-std_Start,np.squeeze(Evo_Start_data)+std_Start,color='r',alpha=0.2)
 		plt.fill_between(Epochs_HR.times, np.squeeze(Evo_Stop_data)-std_Stop,np.squeeze(Evo_Stop_data)+std_Stop,color='k',alpha=0.2)
 		
-		
-		for i_cluster in range(len(cluster_p_values)):
-			if (cluster_p_values[i_cluster]<p_accept):
-				Clust_curr_start = np.where(clusters[i_cluster])[0][0]
-				Clust_curr_stop = np.where(clusters[i_cluster])[0][-1]
-				figHR_Mvt.get_axes()[0].axvspan(Epochs_HR.times[Clust_curr_start], Epochs_HR.times[Clust_curr_stop],facecolor="m",alpha=0.25)	
+		if len(cluster_p_values)>0:
+			for i_cluster in range(len(cluster_p_values)):
+				if (cluster_p_values[i_cluster]<p_accept):
+					Clust_curr_start = np.where(clusters[i_cluster])[0][0]
+					Clust_curr_stop = np.where(clusters[i_cluster])[0][-1]
+					figHR_Mvt.get_axes()[0].axvspan(Epochs_HR.times[Clust_curr_start], Epochs_HR.times[Clust_curr_stop],facecolor="m",alpha=0.25)	
 				
 		
 		

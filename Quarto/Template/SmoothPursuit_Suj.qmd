@@ -51,7 +51,13 @@ Read Raw File
 if FlagProcessAnalysis :
 	# Read fif filename and convert in raw object
 	raw_SmoothPurs = SmoothPursuit(FifFileName)
-	Target_Traject, GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times = raw_SmoothPurs.SetDataGaze()
+	FlagET = 'Gaze_LEye_X' in raw_SmoothPurs.mne_raw.info['ch_names']
+	FlagProcessAnalysis = FlagET
+
+	if FlagET:
+		GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y = raw_SmoothPurs.SetDataGaze()
+	else:
+		print("  ****************         NO DATA          ****************")		
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -61,7 +67,7 @@ else:
 
 ```{python}
 if FlagProcessAnalysis :
-	raw_SmoothPurs.Plot_SmootPurs_Traject(Target_Traject,GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times)
+	raw_SmoothPurs.Plot_SmootPurs_Traject(GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y)
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -71,7 +77,7 @@ else:
 ## Detect saccades and plot gaze trajectory with saccade
 ```{python}
 if FlagProcessAnalysis :
-	EsacLeft,NbSaccades_Left,EsacRight,NbSaccades_Right,AmpSaccLeft,AmpSaccRight = raw_SmoothPurs.DetectSaccades_andPlot(Target_Traject,GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times)
+	EsacLeft,NbSaccades_Left,EsacRight,NbSaccades_Right,AmpSaccLeft,AmpSaccRight = raw_SmoothPurs.DetectSaccades_andPlot(GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y)
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -81,8 +87,8 @@ else:
 ## Compute Velocity and all parameters
 ```{python}
 if FlagProcessAnalysis :
-	Velocity_Left,Velocity_Right = raw_SmoothPurs.ComputeVelocity_andPlot(GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,Times,EsacLeft,EsacRight)
-	Results = raw_SmoothPurs.ComputeParameters(Target_Traject,GazeLE_X,GazeRE_X,EsacLeft,EsacRight,AmpSaccLeft,AmpSaccRight,Velocity_Left,Velocity_Right)
+	Velocity_Left,Velocity_Right = raw_SmoothPurs.ComputeVelocity_andPlot(GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,EsacLeft,EsacRight)
+	Results = raw_SmoothPurs.ComputeParameters(GazeLE_X,GazeRE_X,EsacLeft,EsacRight,AmpSaccLeft,AmpSaccRight,Velocity_Left,Velocity_Right)
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -91,12 +97,15 @@ else:
 
 ## Analysis of EOG signal
 ```{python}
-if FlagProcessAnalysis :
+if (os.path.isfile(FifFileName))  :
 	NbBlinks,RMSE_EOG = raw_SmoothPurs.EOGAnalysis(raw_SmoothPurs.mne_raw)
 	NbBlinksPerCycle_EOG = NbBlinks/raw_SmoothPurs.Nb_blocks
-	Results.update({'NbBlinksPerCycle_EOG':NbBlinksPerCycle_EOG})
-	Results.update({'RMSE_EOG':RMSE_EOG})
-	Results.update({'Median_RMSE_EOG':np.median(RMSE_EOG)})
+	if FlagET:
+		Results.update({'NbBlinksPerCycle_EOG':NbBlinksPerCycle_EOG})
+		Results.update({'RMSE_EOG':RMSE_EOG})
+		Results.update({'Median_RMSE_EOG':np.median(RMSE_EOG)})
+	else:
+		Results={'NbBlinksPerCycle_EOG':NbBlinksPerCycle_EOG, 'RMSE_EOG':RMSE_EOG,'Median_RMSE_EOG':np.median(RMSE_EOG) }
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -155,7 +164,7 @@ else:
 
 ### Number of blinks per cycle 
 ```{python}
-if FlagProcessAnalysis :
+if (os.path.isfile(FifFileName))  :
 	print(Results['NbBlinksPerCycle_EOG'] , " blinks/cycle")
 else:
 	print("  ****************         NO DATA          ****************")
@@ -164,20 +173,24 @@ else:
 
 ### RMSE on EOG data
 ```{python}
-if FlagProcessAnalysis :
+if (os.path.isfile(FifFileName)):
 	print("RMSE : " , Results['Median_RMSE_EOG'])
 else:
 	print("  ****************         NO DATA          ****************")
 ```
 
 ```{python}
-if FlagProcessAnalysis :
+if  os.path.isfile(FifFileName) :
 	# Save results computed from gaze data in a *json file
 	if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
 		os.mkdir(RootDirectory_Results + SUBJECT_NAME)
 	SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_SmoothPursuit.json"
-	raw_SmoothPurs.SaveResults(Results,SaveDataFilename)
-	py_tools.append_to_json_file(SaveDataFilename, {'NbBlinksPerCycle_EOG': Results['NbBlinksPerCycle_EOG'],'RMSE_EOG':Results['Median_RMSE_EOG']})
+	if FlagET:
+		raw_SmoothPurs.SaveResults(Results,SaveDataFilename)
+		py_tools.append_to_json_file(SaveDataFilename, {'NbBlinksPerCycle_EOG': Results['NbBlinksPerCycle_EOG'],'RMSE_EOG':Results['Median_RMSE_EOG']})
+	else:
+		py_tools.sauvegarder_dictionnaires({'NbBlinksPerCycle_EOG': Results['NbBlinksPerCycle_EOG'],'RMSE_EOG':Results['Median_RMSE_EOG']},SaveDataFilename)
+	
 
 ```
 
