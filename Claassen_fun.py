@@ -761,7 +761,8 @@ if __name__ == "__main__":
 # 		
 		fig_ERDS = raw_Claassen.ERDS_Analysis(rejection_rate=rejection_rate)
 		figHR_Mvt = raw_Claassen.HeartRate_analysis()
-		figPupil = raw_Claassen.PupilDiam_analysis()
+		if ('Gaze_LEye_X' in raw_Claassen.mne_raw.info['ch_names']):
+			figPupil = raw_Claassen.PupilDiam_analysis()
 
 
 	if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):
