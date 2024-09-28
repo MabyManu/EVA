@@ -781,14 +781,17 @@ class ActPass:
 		FlagCond1 = False
 		FlagCond2 = False
 		
-		if (PupilDiam_Cond1_epochData_raw.ndim>1):
-			PupilDiam_Cond1_epochData = py_tools.AutoReject(PupilDiam_Cond1_epochData_raw,10)
-			FlagCond1 = True
+		
+		if len(PupilDiam_Cond1_epochData_raw)>0:
+			if (PupilDiam_Cond1_epochData_raw.ndim>1):
+				PupilDiam_Cond1_epochData = py_tools.AutoReject(PupilDiam_Cond1_epochData_raw,10)
+				FlagCond1 = True
 
 				
-		if (PupilDiam_Cond2_epochData_raw.ndim>1):
-			PupilDiam_Cond2_epochData = py_tools.AutoReject(PupilDiam_Cond2_epochData_raw,10)
-			FlagCond2 = True
+		if len(PupilDiam_Cond2_epochData_raw)>0:
+			if (PupilDiam_Cond2_epochData_raw.ndim>1):
+				PupilDiam_Cond2_epochData = py_tools.AutoReject(PupilDiam_Cond2_epochData_raw,10)
+				FlagCond2 = True
 
 			
 		if (FlagCond1 & FlagCond2):
