@@ -51,6 +51,8 @@ Read Raw File
 
 # Read fif filename 
 raw_ActPass = ActPass(FifFileName)
+FlagET = 'Gaze_LEye_X' in raw_ActPass.mne_raw.info['ch_names']
+
 
 ```
 
@@ -166,7 +168,10 @@ fig_HR = raw_ActPass.HeartRate_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/D
 
 ## Compare Pupil Diameter under the DIVerted Attention and the FOCused Attention Conditions
 ```{python}
-fig_Pupill = raw_ActPass.PupilDiam_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
+if FlagET:
+	fig_Pupill = raw_ActPass.PupilDiam_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
+else:
+	print("  ****************         NO DATA          ****************")
 ```
 
 
