@@ -150,5 +150,6 @@ with open(SaveDataFilename, "w") as outfile:
 py_tools.append_to_json_file(SaveDataFilename, {'CrossVal_1TrainXdawn':XValid_Acc_1TrainXdawn,'CrossVal_ReTrainXdawn':XValid_Acc_ReTrainXdawn})	 
 py_tools.append_to_json_file(SaveDataFilename,  Results_SpectVertiEOG)
 py_tools.append_to_json_file(SaveDataFilename,  Results_SpectHorizEOG) 
+py_tools.append_to_json_file(SaveDataFilename,  {'Behavior Accuracy':Behav_Acc}) 
 ```
 

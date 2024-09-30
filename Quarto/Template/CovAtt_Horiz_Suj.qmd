@@ -361,6 +361,7 @@ if FlagProcessAnalysis :
 		py_tools.append_to_json_file(SaveDataFilename,  Results_SpectGaze)
 	py_tools.append_to_json_file(SaveDataFilename,  Results_SpectVertiEOG)
 	py_tools.append_to_json_file(SaveDataFilename,  Results_SpectHorizEOG)
+	py_tools.append_to_json_file(SaveDataFilename,  {'Behavior Accuracy':Behav_Acc_Horiz}) 
 
 ```
 
