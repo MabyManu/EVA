@@ -1025,40 +1025,40 @@ if __name__ == "__main__":
 		# Read fif filname and convert in raw object
 		raw_AudBCI = AudBCI(FifFileName)
 # 		figGaze = raw_AudBCI.GazeAnalysis()
-# 		figStd,EpochStd = raw_AudBCI.CompareStimUnderCond('Std',[1,1],'Standards')
-# 		
-# 		figDev,EpochDev = raw_AudBCI.CompareStimUnderCond('Dev',[2.5,2.5],'Deviants')
-# 		figDevAttVsIgn,P300Effect_OK = raw_AudBCI.Compare_Stim_2Cond_ROI(EpochDev, ["crimson","steelblue"],[2.5,2.5],[0.25,0.8], ['Cz','Pz'],0.05)
+		figStd,EpochStd = raw_AudBCI.CompareStimUnderCond('Std',[1,1],'Standards')
+		
+		figDev,EpochDev = raw_AudBCI.CompareStimUnderCond('Dev',[2.5,2.5],'Deviants')
+		figDevAttVsIgn,P300Effect_OK = raw_AudBCI.Compare_Stim_2Cond_ROI(EpochDev, ["crimson","steelblue"],[2.5,2.5],[0.25,0.8], ['Cz','Pz'],0.05)
 
-# 		Behav_Acc,TabNbStimPerBlock,fig= raw_AudBCI.ComputeFeatures()
-# 		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_No,accuracy_Yes = raw_AudBCI.ClassicCrossValidation(TabNbStimPerBlock)
-# 		print("   *********** Classic X-Validation ")
-# 		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
-# 		print("   ***********   ")
-# 		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
-# 		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
-# 		print("     Accuracy No Stim Only   :  " ,  "{:.2f}".format(accuracy_No))
-# 		print("     Accuracy Yes Stim Only  :  " , "{:.2f}".format(accuracy_Yes))
-# 		
-# 		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_No,accuracy_Yes = raw_AudBCI.ComputeAccuracy(TabNbStimPerBlock)
-# 		print("   *********** X-Validation with retrained Xdawn ")
-# 		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
-# 		print("   ***********   ")
-# 		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
-# 		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
-# 		print("     Accuracy No Stim Only   :  " ,  "{:.2f}".format(accuracy_No))
-# 		print("     Accuracy Yes Stim Only  :  " , "{:.2f}".format(accuracy_Yes))
+		Behav_Acc,TabNbStimPerBlock,fig= raw_AudBCI.ComputeFeatures()
+		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_No,accuracy_Yes = raw_AudBCI.ClassicCrossValidation(TabNbStimPerBlock)
+		print("   *********** Classic X-Validation ")
+		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+		print("   ***********   ")
+		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+		print("     Accuracy No Stim Only   :  " ,  "{:.2f}".format(accuracy_No))
+		print("     Accuracy Yes Stim Only  :  " , "{:.2f}".format(accuracy_Yes))
+		
+		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_No,accuracy_Yes = raw_AudBCI.ComputeAccuracy(TabNbStimPerBlock)
+		print("   *********** X-Validation with retrained Xdawn ")
+		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+		print("   ***********   ")
+		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+		print("     Accuracy No Stim Only   :  " ,  "{:.2f}".format(accuracy_No))
+		print("     Accuracy Yes Stim Only  :  " , "{:.2f}".format(accuracy_Yes))
 		
 		
 		
 		
-		Events, Events_dict = mne.events_from_annotations(raw_AudBCI.mne_raw,verbose='ERROR')
+# 		Events, Events_dict = mne.events_from_annotations(raw_AudBCI.mne_raw,verbose='ERROR')
 
-		raw_AudBCI.RespirationSynchrony(raw_AudBCI.mne_raw,'Resp',[Events_dict['DevNo/AttNo'],Events_dict['DevYes/AttYes'],Events_dict['DevNo/AttYes'],Events_dict['DevYes/AttNo'],Events_dict['StdNo/AttNo'],Events_dict['StdYes/AttYes'],Events_dict['StdNo/AttYes'],Events_dict['StdYes/AttNo']])
-		
-		
-		figSpectVertiEOG,Results_SpectVertiEOG = raw_AudBCI.EOGSpectralAnalysis(raw_AudBCI.mne_raw,['Fp1','Fp2'],0.25,15,0.1,'Verti')
-		figSpectHorizEOG,Results_SpectHorizEOG = raw_AudBCI.EOGSpectralAnalysis(raw_AudBCI.mne_raw,['EOGLef','EOGRig'],0.25,15,0.1,'Horiz')
+# 		raw_AudBCI.RespirationSynchrony(raw_AudBCI.mne_raw,'Resp',[Events_dict['DevNo/AttNo'],Events_dict['DevYes/AttYes'],Events_dict['DevNo/AttYes'],Events_dict['DevYes/AttNo'],Events_dict['StdNo/AttNo'],Events_dict['StdYes/AttYes'],Events_dict['StdNo/AttYes'],Events_dict['StdYes/AttNo']])
+# 		
+# 		
+# 		figSpectVertiEOG,Results_SpectVertiEOG = raw_AudBCI.EOGSpectralAnalysis(raw_AudBCI.mne_raw,['Fp1','Fp2'],0.25,15,0.1,'Verti')
+# 		figSpectHorizEOG,Results_SpectHorizEOG = raw_AudBCI.EOGSpectralAnalysis(raw_AudBCI.mne_raw,['EOGLef','EOGRig'],0.25,15,0.1,'Horiz')
 
 
 

@@ -1796,126 +1796,126 @@ if __name__ == "__main__":
 			                  'StdBottom/AttBottom' : 13, 'DevBottom/AttBottom' : 14,
 			                  'Instruct/AttUp'  : 9 , 'Instruct/AttBottom' : 10 }
 		
-# 		mne_rawVertiCovAtt = CovertAtt_Verti.ReadFileandConvertEvent(FifFileName, DictEvent_Verti)
+		mne_rawVertiCovAtt = CovertAtt_Verti.ReadFileandConvertEvent(FifFileName, DictEvent_Verti)
 
-# 		
-# 		Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,AttSide = CovertAtt_Verti.SetGazeData(mne_rawVertiCovAtt)
-
-# 		
-# 		fig_Leye,Perct_FixCross_Leye = CovertAtt_Verti.PlotGazeFixation(Gaze_LEye_X,Gaze_LEye_Y,AttSide)
-# 		fig_Leye.suptitle('Vertical -  Up Eye Gaze Fixation')
-
-# 		fig_Reye,Perct_FixCross_Reye = CovertAtt_Verti.PlotGazeFixation(Gaze_REye_X,Gaze_REye_Y,AttSide)
-# 		fig_Reye.suptitle('Vertical -  Bottom Eye Gaze Fixation')
-# 		
-# 		CovertAtt_Verti.PlotSaccade(Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,mne_rawVertiCovAtt.info['sfreq'],AttSide,'Hori')
-# 		
-# 		
-# 		figStd,EpochStd = CovertAtt_Verti.CompareStimUnderCond(mne_rawVertiCovAtt,'Std',[1,1],'Standards')
-# 		figDev,EpochDev = CovertAtt_Verti.CompareStimUnderCond(mne_rawVertiCovAtt,'Dev',[2.5,2.5],'Deviants')
-# 		Events_Verti, _ = mne.events_from_annotations(mne_rawVertiCovAtt,verbose='ERROR')
-
-# 		fig_CompareCond_IC_Std_Vert = CovertAtt_Verti.CompareCondFromIcaCompo(mne_rawVertiCovAtt,Events_Verti,['eeg'],-0.1,1.0,0.15,'Std',[1,1],'Standards Vertical',2000,0.15)
-# 		fig_CompareCond_IC_Dev_Vert = CovertAtt_Verti.CompareCondFromIcaCompo(mne_rawVertiCovAtt,Events_Verti,['eeg'],-0.1,1.0,0.15,'Dev',[2.5,2.5],'Deviants Vertical',2000,0.15)
-# 		
-
-# 		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['EOGLef','EOGRig'],'Horiz',-0.1,0.6,[1,1],'Std',0.05)	
-# 		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['EOGLef','EOGRig'],'Horiz',-0.1,0.6,[2.5,2.5],'Dev',0.05)	
-# 		
-# 		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['Fp1','Fp2'],'Verti',-0.1,0.6,'Std',0.05)	
-# 		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['Fp1','Fp2'],'Verti',-0.1,0.6,'Dev',0.05)	
-
-# 		CovertAtt_Verti.plotDiamPupillCompareAttIgn(mne_rawVertiCovAtt,['PupDi_LEye','PupDi_REye'],-0.1,0.6,'Std',0.05)	
-# 		CovertAtt_Verti.plotDiamPupillCompareAttIgn(mne_rawVertiCovAtt,['PupDi_LEye','PupDi_REye'],-0.1,0.6,'Dev',0.05)	
 		
+		Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,AttSide = CovertAtt_Verti.SetGazeData(mne_rawVertiCovAtt)
 
-# 		CovertAtt_Verti.plotGazeCompareAttIgn (mne_rawVertiCovAtt,['Gaze_LEye_X','Gaze_LEye_Y'],-0.1,0.6,'Std',0.05)
-# 		CovertAtt_Verti.plotGazeCompareAttIgn (mne_rawVertiCovAtt,['Gaze_LEye_X','Gaze_LEye_Y'],-0.1,0.6,'Dev',0.05)
-# 		Behav_Acc_Verti,TabNbStimPerBlock_Verti,figFeatures_Verti,Features_Verti,nb_spatial_filters,NbPtsEpoch= CovertAtt_Verti.ComputeFeatures(mne_rawVertiCovAtt)
-# 		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Up,accuracy_Bottom = CovertAtt_Verti.ClassicCrossValidation(Features_Horiz,nb_spatial_filters,NbPtsEpoch)
-# 		print("   *********** Classic X-Validation ")
-# 		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
-# 		print("   ***********   ")
-# 		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
-# 		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
-# 		print("     Accuracy Stim Up Only   :  " ,  "{:.2f}".format(accuracy_Up))
-# 		print("     Accuracy Stim Bottom Only  :  " , "{:.2f}".format(accuracy_Bottom))	
-# 			
-# 		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Up,accuracy_Bottom = CovertAtt_Verti.ComputeAccuracy(mne_rawVertiCovAtt,TabNbStimPerBlock_Horiz)
-# 		print("   *********** X-Validation with retrained Xdawn ")
-# 		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
-# 		print("   ***********   ")
-# 		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
-# 		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
-# 		print("     Accuracy Stim Up Only   :  " ,  "{:.2f}".format(accuracy_Up))
-# 		print("     Accuracy Stim BottomOnly  :  " , "{:.2f}".format(accuracy_Bottom))
+		
+		fig_Leye,Perct_FixCross_Leye = CovertAtt_Verti.PlotGazeFixation(Gaze_LEye_X,Gaze_LEye_Y,AttSide)
+		fig_Leye.suptitle('Vertical -  Up Eye Gaze Fixation')
+
+		fig_Reye,Perct_FixCross_Reye = CovertAtt_Verti.PlotGazeFixation(Gaze_REye_X,Gaze_REye_Y,AttSide)
+		fig_Reye.suptitle('Vertical -  Bottom Eye Gaze Fixation')
+		
+		CovertAtt_Verti.PlotSaccade(Gaze_LEye_X,Gaze_LEye_Y,Gaze_REye_X,Gaze_REye_Y,mne_rawVertiCovAtt.info['sfreq'],AttSide,'Hori')
 		
 		
-		
-		
-		# MERGE
-		
-# 		FifFileName_Horiz  = glob.glob(paths[i_suj] + '/*_VisAtt_Horiz.raw.fif')[0]
-# 		FifFileName_Verti  = glob.glob(paths[i_suj] + '/*_VisAtt_Verti.raw.fif')[0]
-# 			
-# 		# Read fif filename and convert in raw object
-# 		CovertAtt_Merg = CovertAttention()
-# 		
-# 		
-# 		DictEvent = {'StdStim1/AttStim1' : 1 , 'DevStim1/AttStim1'  : 2 ,
-# 			         'StdStim2/AttStim1' : 3 , 'DevStim2/AttStim1' : 4 , 
-# 					 'StdStim1/AttStim2'  : 11, 'DevStim1/AttStim2'  : 12,
-# 					 'StdStim2/AttStim2' : 13, 'DevStim2/AttStim2' : 14,
-# 					 'Instruct/AttStim1' : 9 , 'Instruct/AttStim2' : 10 }
-# 		
+		figStd,EpochStd = CovertAtt_Verti.CompareStimUnderCond(mne_rawVertiCovAtt,'Std',[1,1],'Standards')
+		figDev,EpochDev = CovertAtt_Verti.CompareStimUnderCond(mne_rawVertiCovAtt,'Dev',[2.5,2.5],'Deviants')
+		Events_Verti, _ = mne.events_from_annotations(mne_rawVertiCovAtt,verbose='ERROR')
 
-# 		
-# 		mne_rawVertiCovAtt = CovertAtt_Merg.ReadFileandConvertEvent(FifFileName_Verti, DictEvent)
-# 		mne_rawHorizCovAtt = CovertAtt_Merg.ReadFileandConvertEvent(FifFileName_Horiz, DictEvent)
-# 		
-# 		Events_Verti, Events_dict_Verti = mne.events_from_annotations(mne_rawVertiCovAtt,verbose='ERROR')
-# 		Events_Horiz, Events_dict_Horiz = mne.events_from_annotations(mne_rawHorizCovAtt,verbose='ERROR')
+		fig_CompareCond_IC_Std_Vert = CovertAtt_Verti.CompareCondFromIcaCompo(mne_rawVertiCovAtt,Events_Verti,['eeg'],-0.1,1.0,0.15,'Std',[1,1],'Standards Vertical',2000,0.15)
+		fig_CompareCond_IC_Dev_Vert = CovertAtt_Verti.CompareCondFromIcaCompo(mne_rawVertiCovAtt,Events_Verti,['eeg'],-0.1,1.0,0.15,'Dev',[2.5,2.5],'Deviants Vertical',2000,0.15)
+		
 
-# 		mne_rawMergeCovAtt = concatenate_raws([mne_rawHorizCovAtt,mne_rawVertiCovAtt])
-# 		
-# 		
-# 		
-# 		
-# 		
-# 		Events_Merge, Events_dict_Merge = mne.events_from_annotations(mne_rawMergeCovAtt,verbose='ERROR')
-# 		
-# 		
-# 		figStd,EpochStd = CovertAtt_Merg.CompareStimUnderCond(mne_rawMergeCovAtt,'Std',[1,1],'Standards')
-# 		figDev,EpochDev = CovertAtt_Merg.CompareStimUnderCond(mne_rawMergeCovAtt,'Dev',[2.5,2.5],'Deviants')
-# 		fig_CompareCond_IC_Std_Merge = CovertAtt_Merg.CompareCondFromIcaCompo(mne_rawMergeCovAtt,Events_Merge,['eeg'],-0.1,1.0,0.15,'Std',[1,1],'Standards Merge',2000,0.15)
-# 		fig_CompareCond_IC_Dev_Merge = CovertAtt_Merg.CompareCondFromIcaCompo(mne_rawMergeCovAtt,Events_Merge,['eeg'],-0.1,1.0,0.15,'Dev',[2.5,2.5],'Deviants Merge',2000,0.15)
-# 		
+		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['EOGLef','EOGRig'],'Horiz',-0.1,0.6,[1,1],'Std',0.05)	
+		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['EOGLef','EOGRig'],'Horiz',-0.1,0.6,[2.5,2.5],'Dev',0.05)	
 		
-# 		
-# 		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['EOGLef','EOGRig'],'Horiz',-0.1,0.6,[1,1],'Std',0.00)	
-# 		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['EOGLef','EOGRig'],'Horiz',-0.1,0.6,[2.5,2.5],'Dev',0.00)	
-# 		
-# 		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['Fp1','Fp2'],'Verti',-0.1,0.6,[1,1],'Std',0.00)	
-# 		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['Fp1','Fp2'],'Verti',-0.1,0.6,[2.5,2.5],'Dev',0.00)			
+		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['Fp1','Fp2'],'Verti',-0.1,0.6,'Std',0.05)	
+		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['Fp1','Fp2'],'Verti',-0.1,0.6,'Dev',0.05)	
+
+		CovertAtt_Verti.plotDiamPupillCompareAttIgn(mne_rawVertiCovAtt,['PupDi_LEye','PupDi_REye'],-0.1,0.6,'Std',0.05)	
+		CovertAtt_Verti.plotDiamPupillCompareAttIgn(mne_rawVertiCovAtt,['PupDi_LEye','PupDi_REye'],-0.1,0.6,'Dev',0.05)	
 		
-# 		Behav_Acc_Merge,TabNbStimPerBlock_Merge,figFeatures_Merge,Features_Merge,nb_spatial_filters,NbPtsEpoch= CovertAtt_Merg.ComputeFeatures(mne_rawMergeCovAtt)
-# 		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Stim1,accuracy_Stim2 = CovertAtt_Merg.ClassicCrossValidation(Features_Merge,nb_spatial_filters,NbPtsEpoch)
-# 		print("   *********** Classic X-Validation ")
-# 		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
-# 		print("   ***********   ")
-# 		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
-# 		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
-# 		print("     Accuracy Stim 1 Only   :  " ,  "{:.2f}".format(accuracy_Stim1))
-# 		print("     Accuracy Stim 2 Only  :  " , "{:.2f}".format(accuracy_Stim2))	
-# 			
-# 		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Stim1,accuracy_Stim2 = CovertAtt_Merg.ComputeAccuracy(mne_rawMergeCovAtt,TabNbStimPerBlock_Merge)
-# 		print("   *********** X-Validation with retrained Xdawn ")
-# 		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
-# 		print("   ***********   ")
-# 		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
-# 		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
-# 		print("     Accuracy Stim Up Only   :  " ,  "{:.2f}".format(accuracy_Stim1))
-# 		print("     Accuracy Stim BottomOnly  :  " , "{:.2f}".format(accuracy_Stim2))
+
+		CovertAtt_Verti.plotGazeCompareAttIgn (mne_rawVertiCovAtt,['Gaze_LEye_X','Gaze_LEye_Y'],-0.1,0.6,'Std',0.05)
+		CovertAtt_Verti.plotGazeCompareAttIgn (mne_rawVertiCovAtt,['Gaze_LEye_X','Gaze_LEye_Y'],-0.1,0.6,'Dev',0.05)
+		Behav_Acc_Verti,TabNbStimPerBlock_Verti,figFeatures_Verti,Features_Verti,nb_spatial_filters,NbPtsEpoch= CovertAtt_Verti.ComputeFeatures(mne_rawVertiCovAtt)
+		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Up,accuracy_Bottom = CovertAtt_Verti.ClassicCrossValidation(Features_Horiz,nb_spatial_filters,NbPtsEpoch)
+		print("   *********** Classic X-Validation ")
+		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+		print("   ***********   ")
+		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+		print("     Accuracy Stim Up Only   :  " ,  "{:.2f}".format(accuracy_Up))
+		print("     Accuracy Stim Bottom Only  :  " , "{:.2f}".format(accuracy_Bottom))	
+ 			
+		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Up,accuracy_Bottom = CovertAtt_Verti.ComputeAccuracy(mne_rawVertiCovAtt,TabNbStimPerBlock_Horiz)
+		print("   *********** X-Validation with retrained Xdawn ")
+		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+		print("   ***********   ")
+		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+		print("     Accuracy Stim Up Only   :  " ,  "{:.2f}".format(accuracy_Up))
+		print("     Accuracy Stim BottomOnly  :  " , "{:.2f}".format(accuracy_Bottom))
+		
+		
+		
+		
+# 		 MERGE
+		
+		FifFileName_Horiz  = glob.glob(paths[i_suj] + '/*_VisAtt_Horiz.raw.fif')[0]
+		FifFileName_Verti  = glob.glob(paths[i_suj] + '/*_VisAtt_Verti.raw.fif')[0]
+ 			
+		# Read fif filename and convert in raw object
+		CovertAtt_Merg = CovertAttention()
+		
+		
+		DictEvent = {'StdStim1/AttStim1' : 1 , 'DevStim1/AttStim1'  : 2 ,
+			         'StdStim2/AttStim1' : 3 , 'DevStim2/AttStim1' : 4 , 
+					 'StdStim1/AttStim2'  : 11, 'DevStim1/AttStim2'  : 12,
+					 'StdStim2/AttStim2' : 13, 'DevStim2/AttStim2' : 14,
+					 'Instruct/AttStim1' : 9 , 'Instruct/AttStim2' : 10 }
+		
+
+		
+		mne_rawVertiCovAtt = CovertAtt_Merg.ReadFileandConvertEvent(FifFileName_Verti, DictEvent)
+		mne_rawHorizCovAtt = CovertAtt_Merg.ReadFileandConvertEvent(FifFileName_Horiz, DictEvent)
+		
+		Events_Verti, Events_dict_Verti = mne.events_from_annotations(mne_rawVertiCovAtt,verbose='ERROR')
+		Events_Horiz, Events_dict_Horiz = mne.events_from_annotations(mne_rawHorizCovAtt,verbose='ERROR')
+
+		mne_rawMergeCovAtt = concatenate_raws([mne_rawHorizCovAtt,mne_rawVertiCovAtt])
+		
+		
+		
+		
+		
+		Events_Merge, Events_dict_Merge = mne.events_from_annotations(mne_rawMergeCovAtt,verbose='ERROR')
+		
+		
+		figStd,EpochStd = CovertAtt_Merg.CompareStimUnderCond(mne_rawMergeCovAtt,'Std',[1,1],'Standards')
+		figDev,EpochDev = CovertAtt_Merg.CompareStimUnderCond(mne_rawMergeCovAtt,'Dev',[2.5,2.5],'Deviants')
+		fig_CompareCond_IC_Std_Merge = CovertAtt_Merg.CompareCondFromIcaCompo(mne_rawMergeCovAtt,Events_Merge,['eeg'],-0.1,1.0,0.15,'Std',[1,1],'Standards Merge',2000,0.15)
+		fig_CompareCond_IC_Dev_Merge = CovertAtt_Merg.CompareCondFromIcaCompo(mne_rawMergeCovAtt,Events_Merge,['eeg'],-0.1,1.0,0.15,'Dev',[2.5,2.5],'Deviants Merge',2000,0.15)
+		
+		
+		
+		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['EOGLef','EOGRig'],'Horiz',-0.1,0.6,[1,1],'Std',0.00)	
+		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['EOGLef','EOGRig'],'Horiz',-0.1,0.6,[2.5,2.5],'Dev',0.00)	
+		
+		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['Fp1','Fp2'],'Verti',-0.1,0.6,[1,1],'Std',0.00)	
+		CovertAtt_Verti.plotEOGCompareAttIgn (mne_rawVertiCovAtt,['Fp1','Fp2'],'Verti',-0.1,0.6,[2.5,2.5],'Dev',0.00)			
+		
+		Behav_Acc_Merge,TabNbStimPerBlock_Merge,figFeatures_Merge,Features_Merge,nb_spatial_filters,NbPtsEpoch= CovertAtt_Merg.ComputeFeatures(mne_rawMergeCovAtt)
+		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Stim1,accuracy_Stim2 = CovertAtt_Merg.ClassicCrossValidation(Features_Merge,nb_spatial_filters,NbPtsEpoch)
+		print("   *********** Classic X-Validation ")
+		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+		print("   ***********   ")
+		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+		print("     Accuracy Stim 1 Only   :  " ,  "{:.2f}".format(accuracy_Stim1))
+		print("     Accuracy Stim 2 Only  :  " , "{:.2f}".format(accuracy_Stim2))	
+ 			
+		accuracy_stds_devs,accuracy_stds,accuracy_devs,accuracy_Stim1,accuracy_Stim2 = CovertAtt_Merg.ComputeAccuracy(mne_rawMergeCovAtt,TabNbStimPerBlock_Merge)
+		print("   *********** X-Validation with retrained Xdawn ")
+		print("           Accuracy all stim :  " ,  "{:.2f}".format(accuracy_stds_devs))
+		print("   ***********   ")
+		print("     Accuracy Std Only       :  " ,  "{:.2f}".format(accuracy_stds))
+		print("     Accuracy Dev Only       :  " ,  "{:.2f}".format(accuracy_devs))
+		print("     Accuracy Stim Up Only   :  " ,  "{:.2f}".format(accuracy_Stim1))
+		print("     Accuracy Stim BottomOnly  :  " , "{:.2f}".format(accuracy_Stim2))
 
 
 		
