@@ -18,7 +18,7 @@ plt.rcParams['figure.figsize']=(15,9)
 from PyQt5.QtWidgets import QFileDialog,QListView,QAbstractItemView,QTreeView
 import numpy as np
 from scipy import interpolate
-
+from  scipy import stats
 import pandas as pd
 import seaborn
 from scipy.signal import detrend
@@ -27,7 +27,7 @@ from AddPyABA_Path import PyABA_path
 import sys
 sys.path.append(PyABA_path + '/PyGazeAnalyser')
 from pygazeanalyser import detectors
-
+from scipy.spatial.distance import euclidean
 sys.path.append(PyABA_path)
 import py_tools,gaze_tools,mne_tools
 
@@ -591,6 +591,12 @@ class SmoothPursuit:
 		ax_EOGHoriz = ax_EOGHoriz.ravel()
 		RMSE_EOG=[]
 		
+		CorrCoef = []
+		Corr_pval = []
+		EuclidDist_Norm = []
+		
+		EOG_TOT = []
+		
 		for i_block in range(Nb_blocks):
 			EOG_curr=  epochs_CyclesEOG_Horiz.get_data(copy=True)[i_block,1,:]-epochs_CyclesEOG_Horiz.get_data(copy=True)[i_block,0,:]
 			EOG_curr = detrend(EOG_curr,type='constant')
@@ -608,6 +614,24 @@ class SmoothPursuit:
 			MSE_EOG =np.nanmean(np.square(EOG_curr-Traject_pos_resamp))
 			RMSE_EOG.append(np.sqrt(MSE_EOG))
 			
+
+			CorrRes = stats.pearsonr(EOG_curr,Traject_pos_resamp)
+			
+			p_value, correlation_observed, threshold = py_tools.correlation_significance_bootstrap(EOG_curr, Traject_pos_resamp, n_iterations=5000, alpha=0.01)
+			
+			distance_raw = euclidean(EOG_curr, Traject_pos_resamp)			
+			distance_Norm = distance_raw/euclidean(-Traject_pos_resamp, Traject_pos_resamp)
+			EuclidDist_Norm.append(distance_Norm)
+			
+			
+			CorrCoef.append(CorrRes[0])
+			Corr_pval.append(p_value)
+			ax_EOGHoriz[i_block].text(2.5,0.85,'Corr : ' + f"{CorrRes[0]:.03f}" ,fontsize=8)
+			ax_EOGHoriz[i_block].text(2.5,0.65,'distance_Norm : ' + f"{distance_Norm:.03f}" ,fontsize=8)
+			ax_EOGHoriz[i_block].text(2.5,0.45,'p_value : ' + f"{p_value:.03f}" ,fontsize=8)
+			
+			EOG_TOT.append(EOG_curr)
+
 		
 		plt.suptitle('Horizontal EOG')
 
@@ -615,8 +639,10 @@ class SmoothPursuit:
 			if (i_rem>=self.Nb_blocks):
 				ax_EOGHoriz[i_rem].remove()	
 				
+		EOG_TOT=np.array(EOG_TOT)
 				
-		return NbBlinks,RMSE_EOG
+				
+		return NbBlinks,RMSE_EOG,CorrCoef,Corr_pval,EuclidDist_Norm
 		
 		
 	def SaveResults(self,Results,SaveDataFilename):
@@ -699,7 +725,7 @@ if __name__ == "__main__":
 		Velocity_Left,Velocity_Right = raw_SmoothPurs.ComputeVelocity_andPlot(GazeLE_X, GazeRE_X,GazeLE_Y,GazeRE_Y,EsacLeft,EsacRight)
 		Results = raw_SmoothPurs.ComputeParameters(GazeLE_X,GazeRE_X,EsacLeft,EsacRight,AmpSaccLeft,AmpSaccRight,Velocity_Left,Velocity_Right)
 		
-		NbBlinks,RMSE_EOG = raw_SmoothPurs.EOGAnalysis(raw_SmoothPurs.mne_raw)
+		NbBlinks,RMSE_EOG,CorrCoef,Corr_pval,EuclidDist_Norm = raw_SmoothPurs.EOGAnalysis(raw_SmoothPurs.mne_raw)
 		NbBlinksPerCycle_EOG = NbBlinks/raw_SmoothPurs.Nb_blocks
 		Results.update({'NbBlinksPerCycle_EOG':NbBlinksPerCycle_EOG})
 		Results.update({'RMSE_EOG':RMSE_EOG})
