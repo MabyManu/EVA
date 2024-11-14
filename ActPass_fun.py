@@ -53,8 +53,8 @@ class ActPass:
 	def __init__(self,FifFileName):
 		self.Channels_Of_Interest = [ 'Fp1', 'Fp2', 'F3', 'Fz', 'F4', 'C3', 'Cz', 'C4', 'TP9', 'CP5', 'CP6', 'TP10', 'Pz']
 		self.FiltFreq_min = 0.5
-		self.FiltFreq_max = 10
-		self.rejection_rate = 0.2
+		self.FiltFreq_max = 10 #10
+		self.rejection_rate = 0.2 #0.2
 		
 		self.Code_Std_Diverted = 1
 		self.Code_Dev_Diverted = 2
@@ -1261,16 +1261,17 @@ if __name__ == "__main__":
 # 		fig_StdDev_FOC = raw_ActPass.CompareSTD_DEV(['STD/FOC','DEV/FOC'],-0.2, 1.5, (-0.2,0),['r','r'],[0.75,2])
 # 		fig_StdDev_DIV = raw_ActPass.CompareSTD_DEV(['STD/DIV','DEV/DIV'],-0.2, 1.5, (-0.2,0),['g','g'],[0.75,2])
 # 		fig_mmn = raw_ActPass.Analysis_MMN([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']],-0.2, 1.5, (-0.2,0),['r','g'],[3,3])
+
 # 		fig_CountEffect,CountEffect_OK =  raw_ActPass.Compare_STDvsDEV_FocCondition(['STD/FOC','DEV/FOC'], -0.2, 1.5, (-0.2,0),['r','r'],[0.75,2],[0.25,0.8],['Fz','Cz','Pz'],0.05)
 # 		fig_DEV_FocVsDiv,FocDivEffect_OK =  raw_ActPass.Compare_DEV_2Cond(['DEV/FOC','DEV/DIV'], -0.2, 1.5, (-0.2,0),['r','g'],[2.0,2.0],[0.25,0.8],['Fz','Cz','Pz'],0.05)
-# 		
+# # 		
 
 # 		fig_HR = raw_ActPass.HeartRate_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
-		fig_Pupill = raw_ActPass.PupilDiam_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
+# 		fig_Pupill = raw_ActPass.PupilDiam_analysis([['STD/FOC','DEV/FOC'],['STD/DIV','DEV/DIV']])
 		
 		
-		RSP_RATE_Mean_Div,RSP_RATE_Std_Div, RSP_Amplitude_Mean_Div, RSP_Amplitude_Std_Div = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/DIV','DEV/DIV']) # DIV condition
-		RSP_RATE_Mean_Foc,RSP_RATE_Std_Foc, RSP_Amplitude_Mean_Foc, RSP_Amplitude_Std_Foc = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/FOC','DEV/FOC']) # FOC condition
+# 		RSP_RATE_Mean_Div,RSP_RATE_Std_Div, RSP_Amplitude_Mean_Div, RSP_Amplitude_Std_Div = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/DIV','DEV/DIV']) # DIV condition
+# 		RSP_RATE_Mean_Foc,RSP_RATE_Std_Foc, RSP_Amplitude_Mean_Foc, RSP_Amplitude_Std_Foc = raw_ActPass.RespirationSynchrony(raw_ActPass.mne_raw,['STD/FOC','DEV/FOC']) # FOC condition
 		
 		
 # 		if not(os.path.exists(RootDirectory_Results + SUBJECT_NAME)):

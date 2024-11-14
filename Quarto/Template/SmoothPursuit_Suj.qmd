@@ -98,14 +98,20 @@ else:
 ## Analysis of EOG signal
 ```{python}
 if (os.path.isfile(FifFileName))  :
-	NbBlinks,RMSE_EOG = raw_SmoothPurs.EOGAnalysis(raw_SmoothPurs.mne_raw)
+	NbBlinks,RMSE_EOG,CorrCoef,Corr_pval,EuclidDist_Norm = raw_SmoothPurs.EOGAnalysis(raw_SmoothPurs.mne_raw)
+
 	NbBlinksPerCycle_EOG = NbBlinks/raw_SmoothPurs.Nb_blocks
 	if FlagET:
 		Results.update({'NbBlinksPerCycle_EOG':NbBlinksPerCycle_EOG})
 		Results.update({'RMSE_EOG':RMSE_EOG})
 		Results.update({'Median_RMSE_EOG':np.median(RMSE_EOG)})
+		Results.update({'CorrCoef_EOG':CorrCoef})
+		Results.update({'Median_CorrCoef_EOG':np.median(CorrCoef)})
+		Results.update({'Corr_pval_EOG':Corr_pval})
+		Results.update({'EuclidDist_Norm_EOG':EuclidDist_Norm})
+		Results.update({'Median_EuclidDist_Norm_EOG':np.median(EuclidDist_Norm)})
 	else:
-		Results={'NbBlinksPerCycle_EOG':NbBlinksPerCycle_EOG, 'RMSE_EOG':RMSE_EOG,'Median_RMSE_EOG':np.median(RMSE_EOG) }
+		Results={'NbBlinksPerCycle_EOG':NbBlinksPerCycle_EOG, 'RMSE_EOG':RMSE_EOG,'Median_RMSE_EOG':np.median(RMSE_EOG),'CorrCoef_EOG':CorrCoef,'Median_CorrCoef_EOG':np.median(CorrCoef),'Corr_pval_EOG':Corr_pval,'EuclidDist_Norm_EOG':EuclidDist_Norm,'Median_EuclidDist_Norm_EOG':np.median(EuclidDist_Norm)}
 else:
 	print("  ****************         NO DATA          ****************")
 ```
@@ -179,6 +185,16 @@ else:
 	print("  ****************         NO DATA          ****************")
 ```
 
+### Accuracy on EOG data
+```{python}
+if (os.path.isfile(FifFileName)):
+	print("Accuracy : " , np.sum([np.array(Results['Corr_pval_EOG'])<0.05])/len(Results['Corr_pval_EOG']))
+else:
+	print("  ****************         NO DATA          ****************")
+```
+
+
+
 ```{python}
 if  os.path.isfile(FifFileName) :
 	# Save results computed from gaze data in a *json file
@@ -187,9 +203,9 @@ if  os.path.isfile(FifFileName) :
 	SaveDataFilename = RootDirectory_Results + SUBJECT_NAME + "/" + SUBJECT_NAME + "_SmoothPursuit.json"
 	if FlagET:
 		raw_SmoothPurs.SaveResults(Results,SaveDataFilename)
-		py_tools.append_to_json_file(SaveDataFilename, {'NbBlinksPerCycle_EOG': Results['NbBlinksPerCycle_EOG'],'RMSE_EOG':Results['Median_RMSE_EOG']})
+		py_tools.append_to_json_file(SaveDataFilename, {'NbBlinksPerCycle_EOG': Results['NbBlinksPerCycle_EOG'],'RMSE_EOG':Results['Median_RMSE_EOG'],'Median_EuclidDist_Norm_EOG':Results['Median_EuclidDist_Norm_EOG'],'CorrCoef_EOG':Results['CorrCoef_EOG'],'Corr_pval_EOG':Results['Corr_pval_EOG']})
 	else:
-		py_tools.sauvegarder_dictionnaires({'NbBlinksPerCycle_EOG': Results['NbBlinksPerCycle_EOG'],'RMSE_EOG':Results['Median_RMSE_EOG']},SaveDataFilename)
+		py_tools.sauvegarder_dictionnaires({'NbBlinksPerCycle_EOG': Results['NbBlinksPerCycle_EOG'],'RMSE_EOG':Results['Median_RMSE_EOG'],'Median_EuclidDist_Norm_EOG':Results['Median_EuclidDist_Norm_EOG'],'CorrCoef_EOG':Results['CorrCoef_EOG'],'Corr_pval_EOG':Results['Corr_pval_EOG']},SaveDataFilename)
 	
 
 ```
